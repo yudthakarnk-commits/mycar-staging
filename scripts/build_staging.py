@@ -16,12 +16,12 @@ PRODUCTION_URL = 'https://pteskuyswmwppswzegxp.supabase.co'
 
 FILES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
-    'sync-health.js',
+    'sync-health.js', 'backup-preview.js',
     'tng-import.js', 'vehicle-photos.js',
     'service-worker.js', 'manifest.webmanifest', '.nojekyll',
     'assets/app.css', 'assets/auth.css', 'assets/car-photos.css',
     'assets/mobile-viewport-fix.css', 'assets/tng-import.css',
-    'assets/sync-health.css',
+    'assets/sync-health.css', 'assets/backup-preview.css',
     'assets/toyota-corolla-cross-3q.webp',
     'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ]
