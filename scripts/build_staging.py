@@ -16,10 +16,12 @@ PRODUCTION_URL = 'https://pteskuyswmwppswzegxp.supabase.co'
 
 FILES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
+    'sync-health.js',
     'tng-import.js', 'vehicle-photos.js',
     'service-worker.js', 'manifest.webmanifest', '.nojekyll',
     'assets/app.css', 'assets/auth.css', 'assets/car-photos.css',
     'assets/mobile-viewport-fix.css', 'assets/tng-import.css',
+    'assets/sync-health.css',
     'assets/toyota-corolla-cross-3q.webp',
     'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ]
@@ -52,7 +54,12 @@ html = index_path.read_text(encoding='utf-8')
 needle = '<script src="./auth.js?v=3.4.2" defer></script>'
 if html.count(needle) != 1:
     raise SystemExit('Unexpected MYCAR script order/version; review app before deploying.')
-html = html.replace(needle, '<script src="./auth-config.js" defer></script>\n    '+needle)
+config_tag = '<script src="./auth-config.js" defer></script>'
+if config_tag not in html:
+    html = html.replace(needle, config_tag + '\n    ' + needle)
+
+if html.count(config_tag) != 1:
+    raise SystemExit('Expected exactly one auth-config.js script.')
 # Source development currently references qa-mocks.js which is NOT in repository.
 # Never publish a missing or test-only mocking script to staging.
 html, num_removed = re.subn(r'<script\s+src="\./qa-mocks\.js"\s+defer></script>', '', html)
@@ -79,7 +86,20 @@ index_path.write_text(html, encoding='utf-8')
 sw_path = DEST / 'service-worker.js'
 sw = sw_path.read_text(encoding='utf-8')
 sw, n_cache = re.subn(r"const CACHE='[^']+';", "const CACHE='mycar-staging-shell-v1';", sw, count=1)
-sw, n_filter = sw.replace("key.startsWith('mycar-')", "key.startsWith('mycar-staging-')"), sw.count("key.startsWith('mycar-')")
+cache_prefixes = (
+    "key.startsWith('mycar-shell-')",
+    "key.startsWith('mycar-')",
+)
+
+matches = sum(sw.count(prefix) for prefix in cache_prefixes)
+
+if matches != 1:
+    raise SystemExit('Unexpected service worker cache filter.')
+
+for prefix in cache_prefixes:
+    sw = sw.replace(prefix, "key.startsWith('mycar-staging-')")
+
+n_filter = matches
 if n_cache != 1 or n_filter != 1:
     raise SystemExit('Service worker cache isolation pattern changed; review manually.')
 sw_path.write_text(sw, encoding='utf-8')
