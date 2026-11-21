@@ -17,6 +17,7 @@ PRODUCTION_URL = 'https://pteskuyswmwppswzegxp.supabase.co'
 FILES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
     'sync-health.js', 'backup-preview.js',
+    'restore-dry-run.js',
     'tng-import.js', 'vehicle-photos.js',
     'service-worker.js', 'manifest.webmanifest', '.nojekyll',
     'assets/app.css', 'assets/auth.css', 'assets/car-photos.css',
