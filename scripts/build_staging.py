@@ -18,6 +18,8 @@ FILES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
     'sync-health.js', 'backup-preview.js',
     'restore-dry-run.js',
+    'pre-restore-snapshot.js',
+    'snapshot-download.js',
     'tng-import.js', 'vehicle-photos.js',
     'service-worker.js', 'manifest.webmanifest', '.nojekyll',
     'assets/app.css', 'assets/auth.css', 'assets/car-photos.css',
