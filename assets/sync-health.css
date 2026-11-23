@@ -1,0 +1,18 @@
+/* MYCAR v3.4.3 — scoped Sync Health presentation */
+.mycar-sync-health{border:1px solid #cbd5e1;background:#f8fafc;border-radius:14px;padding:12px;margin:9px 0;color:#0f172a;font-family:inherit}
+.mycar-sync-health__head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+.mycar-sync-health__state{display:inline-block;border-radius:20px;background:#e2e8f0;color:#334155;padding:3px 9px;font-weight:700;font-size:11px}
+.mycar-sync-health__state[data-state="success"]{background:#d1fae5;color:#065f46}
+.mycar-sync-health__state[data-state="error"]{background:#fee2e2;color:#991b1b}
+.mycar-sync-health__state[data-state="offline"],.mycar-sync-health__state[data-state="pending"]{background:#fef3c7;color:#92400e}
+.mycar-sync-health__metrics{display:grid;grid-template-columns:1fr 1.5fr;gap:8px;margin:10px 0}
+.mycar-sync-health__metrics>div{background:#fff;border:1px solid #e2e8f0;padding:9px;border-radius:10px;min-width:0;display:flex;flex-direction:column;gap:5px}
+.mycar-sync-health__metrics span{font-size:10px;color:#64748b}
+.mycar-sync-health__metrics strong{font-size:12px;overflow-wrap:anywhere}
+.mycar-sync-health__message{font-size:11px;color:#475569;overflow-wrap:anywhere;margin:8px 0}
+.mycar-sync-health__retry{background:#047857;color:white;padding:8px 12px;border:0;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
+.mycar-sync-health__retry:disabled{opacity:.45;cursor:default}
+.mycar-sync-health__hint{font-size:10px;color:#64748b;margin:10px 0 0;line-height:1.5}
+.mycar-health-toast{position:absolute;left:12px;right:12px;bottom:75px;z-index:80;background:#7f1d1d;color:#fff;border-radius:12px;padding:12px;box-shadow:0 5px 15px #0004;font-size:12px;font-weight:600}
+.mycar-health-toast[hidden]{display:none!important}
+@media(max-width:360px){.mycar-sync-health__metrics{grid-template-columns:1fr}}
