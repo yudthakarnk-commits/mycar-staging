@@ -1,0 +1,46 @@
+/* MYCAR model-photo feature: designed for 360px Android and wider web screens */
+.mycar-hero-main { position:relative; display:flex; align-items:center; min-height:126px; gap:0; isolation:isolate; }
+.mycar-hero-amount {position:relative; z-index:2; flex:0 0 53%; min-width:0; }
+.mycar-hero-amount h2 {white-space:nowrap; font-size:clamp(1.75rem,7.4vw,2.45rem); letter-spacing:-.035em;}
+.mycar-car-photo {position:relative; z-index:1; flex:1 1 48%; margin-left:0; min-width:0; height:127px; display:flex; justify-content:center; align-items:center; overflow:hidden; background:linear-gradient(145deg,rgba(248,250,252,.16),rgba(15,23,42,.10)); border:1px solid rgba(255,255,255,.2); border-radius:18px; cursor:pointer; transition:transform .2s ease,border-color .2s ease; }
+.mycar-car-photo:hover,.mycar-car-photo:focus-visible {transform:translateY(-2px);border-color:rgba(255,255,255,.6);outline-offset:2px;}
+.mycar-car-photo img {display:block; width:100%; height:100%; object-fit:cover; object-position:center; filter:saturate(.92) contrast(1.04); }
+.mycar-car-photo img[hidden],.mycar-car-photo-placeholder[hidden] {display:none !important;}
+.mycar-car-photo-placeholder {display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.75); width:100%; padding:8px; }
+.mycar-car-photo-placeholder svg {width:100%;max-width:160px;height:auto;}
+.mycar-car-photo-edit {position:absolute; z-index:3; right:6px; bottom:5px; background:rgba(15,23,42,.76);color:white;border:1px solid rgba(255,255,255,.22); border-radius:999px; padding:3px 7px; font-size:9px; line-height:1.4; font-weight:600; backdrop-filter:blur(8px);}
+.mycar-photo-attribution {position:relative;z-index:2;margin-top:-4px;margin-bottom:4px;text-align:right;color:rgba(209,250,229,.9);font-size:9px;line-height:1.35;}
+.mycar-photo-attribution[hidden] {display:none !important;}
+.mycar-photo-attribution a {color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,.38);}
+.mycar-photo-overlay {position:fixed;inset:0;z-index:130;background:rgba(2,6,23,.78);display:flex;align-items:center;justify-content:center;padding:16px;}
+.mycar-photo-overlay[hidden] {display:none!important;}
+.mycar-photo-panel {position:relative;background:#fff;color:#0f172a;width:100%;max-width:520px;max-height:min(92vh,840px);border-radius:22px;overflow:auto;padding:20px;box-shadow:0 18px 64px rgba(0,0,0,.33);}
+.mycar-photo-panel h3 {font-weight:800;font-size:18px;margin:0 36px 4px 0;}
+.mycar-photo-panel .hint {font-size:12px;line-height:1.5;color:#64748b;}
+.mycar-photo-close {position:absolute;top:14px;right:16px;font-size:24px;color:#475569;cursor:pointer;border:0;background:transparent;}
+.mycar-photo-search {display:flex;gap:8px;margin:16px 0;}
+.mycar-photo-search input {border:1px solid #cbd5e1;border-radius:12px;padding:10px;min-width:0;flex:1;font-size:13px;}
+.mycar-photo-search button,.mycar-photo-use {background:#059669;color:white;border:0;border-radius:12px;padding:8px 12px;font-weight:700;font-size:12px;cursor:pointer;}
+.mycar-photo-results {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.mycar-photo-option {border:1px solid #e2e8f0;border-radius:13px;background:white;overflow:hidden;text-align:left;padding:0;cursor:pointer;}
+.mycar-photo-option img {display:block;width:100%;height:94px;object-fit:cover;background:#e2e8f0;}
+.mycar-photo-option small {display:block;font-size:10px;color:#475569;line-height:1.3;padding:7px;min-height:40px;}
+.mycar-photo-option:hover {border-color:#059669;box-shadow:0 0 0 1px #059669;}
+.mycar-photo-upload {display:flex;align-items:center;gap:7px;margin-top:14px;padding:11px;border:1px dashed #94a3b8;border-radius:12px;color:#334155;font-size:12px;font-weight:650;cursor:pointer;}
+.mycar-photo-upload input {display:none;}
+.mycar-photo-foot {display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px;color:#64748b;font-size:11px;}
+.mycar-photo-foot button {background:#e2e8f0;color:#334155;border:0;border-radius:10px;padding:9px 11px;font-weight:650;cursor:pointer;}
+.mycar-fix-btn {width:100%;margin-top:12px;padding:11px;border:1px solid #a7f3d0;border-radius:12px;background:#ecfdf5;color:#065f46;font-size:12px;font-weight:700;cursor:pointer;}
+@media(max-width:365px){ .mycar-hero-main{min-height:108px}.mycar-car-photo{height:106px}.mycar-hero-amount h2{font-size:1.75rem}.mycar-photo-option img{height:82px}}
+@media(prefers-reduced-motion:reduce){.mycar-car-photo{transition:none}}
+
+/* MYCAR v3.1: space-saving right-side 3/4 cutout; no full-bleed street photo */
+.mycar-hero-main {display:grid !important;grid-template-columns:minmax(0,1fr) minmax(104px,43%) !important;align-items:center!important;gap:4px!important;min-height:112px!important;}
+.mycar-hero-amount{position:relative;z-index:2;min-width:0!important;max-width:100%;align-self:center;}
+.mycar-hero-amount h2{font-size:clamp(1.35rem,5.4vw,2.15rem)!important;letter-spacing:-.045em!important;white-space:nowrap;line-height:1.15;}
+.mycar-car-photo{position:relative;display:flex!important;align-items:center;justify-content:center;justify-self:stretch;align-self:center;width:100%;height:113px!important;min-width:0;max-height:124px;margin:0!important;padding:2px 0 5px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;transition:none!important;}
+.mycar-car-photo img{display:block;width:100%;height:100%;object-fit:contain!important;object-position:center center;background:transparent!important;filter:none!important;}
+.mycar-car-photo:hover,.mycar-car-photo:focus-visible{transform:none!important;border:0!important;outline:2px solid rgba(255,255,255,.75);outline-offset:1px;border-radius:12px;}
+.mycar-car-photo-edit{right:0;bottom:0;padding:2px 6px;font-size:9px;line-height:1.35;white-space:nowrap;background:rgba(7,32,44,.68);}
+.mycar-photo-attribution{text-align:right;font-size:8px;margin-top:0;margin-bottom:0;color:rgba(236,253,245,.75);}
+@media(max-width:365px){.mycar-hero-main{grid-template-columns:minmax(0,1fr) minmax(99px,42%)!important;min-height:98px!important}.mycar-hero-amount h2{font-size:1.28rem!important}.mycar-car-photo{height:97px!important}}
