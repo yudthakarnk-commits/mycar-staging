@@ -1,5 +1,5 @@
 /* MYCAR staging-only PWA cache. Never cache production origins or other app scopes. */
-const CACHE='mycar-staging-rpc-conflict-20261123-v2';
+const CACHE='mycar-staging-rpc-diagnostics-20261123-v3';
 const SHELL=['./','./index.html','./auth-config.js','./auth.js','./cloud-sync.js','./app.js','./sync-health.js','./restore-dry-run.js','./backup-preview.js','./tng-import.js','./vehicle-photos.js','./manifest.webmanifest','./assets/auth.css','./assets/app.css','./assets/car-photos.css','./assets/tng-import.css','./assets/mobile-viewport-fix.css','./assets/sync-health.css','./assets/backup-preview.css'];
 const SCOPE=new URL(self.registration.scope).pathname;
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
