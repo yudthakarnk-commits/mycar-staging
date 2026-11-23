@@ -1241,6 +1241,7 @@
                     refreshActiveView();
                 }
             });
+            window.MYCARRestoreStaging?.refreshReverseButton?.();
         }
 
         function lockMYCARAfterLogout() {
