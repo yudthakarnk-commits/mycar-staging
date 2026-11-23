@@ -60,7 +60,7 @@ function convert(file){
 }
 function controls(working){
  busy=working;
- for(const id of ['mycar-restore-file','mycar-restore-preview','mycar-restore-commit','mycar-restore-reverse'])
+ for(const id of ['mycar-restore-file','mycar-restore-preview','mycar-restore-confirm-button','mycar-restore-reverse'])
   if(byId(id))byId(id).disabled=working;
 }
 async function chooseFile(event){
@@ -172,7 +172,7 @@ function init(){
  const box=byId('mycar-rpc-restore');if(!box)return;
  byId('mycar-restore-file').addEventListener('change',chooseFile);
  byId('mycar-restore-preview').addEventListener('click',doPreview);
- byId('mycar-restore-commit').addEventListener('click',commitRestore);
+ byId('mycar-restore-confirm-button').addEventListener('click',commitRestore);
  byId('mycar-restore-reverse').addEventListener('click',reverseRestore);
  const msg='RPC Merge Restore (STAGING): Preview first. Never clear data or delete records to test Restore.';
  label(msg);
