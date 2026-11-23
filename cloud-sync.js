@@ -10,6 +10,7 @@ const MYCARCloud = (() => {
   let pending = {}, queueKey = '', initializedKey = '', didInitialize = false;
   let bridge = null, generation = 0, lastSuccessful = null;
   let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
+  let lastError = null, lastRpcCheck = null, lastRpcWrite = null;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -89,7 +90,17 @@ const MYCARCloud = (() => {
     return data;
   }
   async function rpc(name, payload) {
-    return request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
+    try {
+      const data=await request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
+      if(name==='mycar_get_sync_state')lastRpcCheck={ok:true,at:new Date().toISOString()};
+      if(name==='mycar_apply_changes')lastRpcWrite={ok:true,at:new Date().toISOString()};
+      return data;
+    } catch(error) {
+      const code=String(error?.message||error);
+      if(name==='mycar_get_sync_state')lastRpcCheck={ok:false,error:code,at:new Date().toISOString()};
+      if(name==='mycar_apply_changes')lastRpcWrite={ok:false,error:code,at:new Date().toISOString()};
+      throw error;
+    }
   }
   function flightKey() { return queueKey+':flight_v2'; }
   function readFlight() {
@@ -250,6 +261,7 @@ const MYCARCloud = (() => {
     if(typeof navigator.onLine==='boolean' && !navigator.onLine) {notify('Offline · changes saved locally','offline');return;}
     const expectedGeneration=generation;
     busy=true;
+    lastError=null;
     notify(currentPendingCount()?'Uploading changes…':'Checking cloud…','working');
     try {
       const beforeState=await rpc('mycar_get_sync_state',{p_request_id:null});
@@ -277,6 +289,7 @@ const MYCARCloud = (() => {
       notify(currentPendingCount()?`${currentPendingCount()} edits pending`:'Synced · '+lastSuccessful.toLocaleTimeString(),'success');
     } catch(error) {
       if(active && generation===expectedGeneration) {
+        lastError=String(error.message||'Unknown sync error');
         notify('Sync error · '+(error.message||'Try again'),'error');
         console.error('MYCAR cloud synchronization failed',error);
       }
@@ -313,7 +326,7 @@ const MYCARCloud = (() => {
     timer=null;
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
-    lastSuccessful=null;
+    lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
     serverRevision=null;knownRemote=null;currentRemote=null;conflictKey=null;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
@@ -322,5 +335,18 @@ const MYCARCloud = (() => {
   window.addEventListener('offline',()=>{if(active)notify('Offline · changes saved locally','offline');});
   window.addEventListener('focus',()=>{if(active)schedule(0);});
   document.addEventListener('visibilitychange',()=>{if(active && !document.hidden)schedule(0);});
-  return {start,stop,syncNow,onLocalChange,get pendingCount(){return currentPendingCount();}};
+  function diagnostics(){
+    return {
+      clientVersion:'staging-conflict-v3-diagnostics',
+      active,online:navigator.onLine,busy,
+      pendingCount:currentPendingCount(),
+      unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
+      serverRevision, baselineKnown:knownRemote!==null,
+      conflictWaiting:!!conflictKey, storedFlight:!!readFlight(),
+      lastRpcCheck,lastRpcWrite,lastError,
+      lastSuccessful:lastSuccessful?.toISOString()||null,
+      projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
+    };
+  }
+  return {start,stop,syncNow,onLocalChange,diagnostics,get pendingCount(){return currentPendingCount();}};
 })();
