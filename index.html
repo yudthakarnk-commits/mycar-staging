@@ -793,6 +793,7 @@
                             <input type="file" accept=".json" onchange="MYCARBackupPreview.inspect(event)" class="hidden">
                         </label>
                         <div id="mycar-backup-preview" class="mycar-backup-preview" hidden></div>
+                        <style>#mycar-rpc-restore [hidden]{display:none!important}</style>
                         <section id="mycar-rpc-restore" style="border:2px solid #0f766e;border-radius:13px;padding:13px;background:#ecfdf5;color:#134e4a;display:grid;gap:9px">
                           <div style="font-size:14px;font-weight:800">STAGING · Transactional RPC Restore</div>
                           <p style="font-size:11px;line-height:1.5">MERGE ONLY: adds/updates backup records. Does not delete records missing from the file or existing tombstones. Requires Pending = 0. Preview creates no changes. Never use a real production backup here.</p>
