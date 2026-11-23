@@ -1,0 +1,30 @@
+/* MYCAR authentication screen – independent of utility CSS bundling. */
+[hidden] { display: none !important; }
+.auth-screen{position:fixed;inset:0;z-index:200;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:22px 16px;background:radial-gradient(ellipse at 15% 5%,#145d50 0%,#0e292f 40%,#0b1222 84%);overflow-y:auto;color:#172338}
+.auth-card{background:#fff;width:min(100%,412px);padding:33px 29px 28px;border:1px solid rgba(255,255,255,.4);border-radius:27px;box-shadow:0 26px 90px rgba(0,0,0,.27)}
+.auth-logo{height:59px;width:59px;border-radius:18px;background:#172336;border:2px solid #44be90;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 13px;line-height:.95;box-shadow:0 8px 22px #0f766e29}
+.auth-logo span{font-size:19px;font-weight:900;color:#40d19e;letter-spacing:-.5px}
+.auth-logo small{font-size:15px;color:#fff;font-weight:600}
+.auth-eyebrow{color:#158465;font-size:10px;font-weight:800;letter-spacing:2px;text-align:center;margin-bottom:12px}
+.auth-card h1{text-align:center;font-size:26px;line-height:1.3;letter-spacing:-.6px;font-weight:800;margin:0;color:#142338}
+.auth-subtitle{text-align:center;font-size:12px;color:#7b8799;margin:7px auto 23px;line-height:1.6;max-width:290px}
+.auth-tabs{display:flex;gap:4px;background:#f0f4f5;border:1px solid #e5ecee;border-radius:12px;padding:4px;margin-bottom:20px}
+.auth-tabs button{flex:1;border-radius:9px;padding:11px;font-size:12px;font-weight:750;color:#82909e;background:transparent;cursor:pointer}
+.auth-tabs button.active{background:#fff;color:#0a8969;box-shadow:0 1px 5px #00000013}
+.auth-form{display:flex;flex-direction:column;gap:15px}
+.auth-form label{display:block;font-size:11px;font-weight:750;margin-bottom:7px;color:#465467}
+.auth-form input{display:block;width:100%;border:1px solid #dce5e9;border-radius:11px;background:#f7f9fa;padding:12px 13px;font-size:13px;color:#142338;outline:0;box-sizing:border-box;transition:border-color .15s}
+.auth-form input:focus{border-color:#149772;background:#fff;box-shadow:0 0 0 3px #14977218}
+.auth-label-row{display:flex;align-items:center;justify-content:space-between}
+.auth-simple-link{background:none;border:0;color:#078a6a;font-size:11px;font-weight:750;cursor:pointer;margin-bottom:7px}
+.auth-password-wrap{position:relative}
+.auth-password-wrap input{padding-right:61px}
+.auth-password-wrap button{position:absolute;right:8px;top:7px;bottom:7px;border:0;border-radius:8px;background:#e9f3ee;color:#14795b;padding:0 9px;font-size:11px;font-weight:750;cursor:pointer}
+.auth-primary{border:0;border-radius:12px;width:100%;background:linear-gradient(105deg,#12a77d,#068f74);color:white;padding:13px 16px;font-size:13px;font-weight:800;margin-top:5px;box-shadow:0 8px 18px #03926c25;cursor:pointer}
+.auth-primary:disabled{opacity:.65;cursor:wait}
+.auth-secondary{display:block;text-align:center;margin:17px auto 0;color:#088d6b;background:transparent;border:0;font-weight:750;font-size:12px;cursor:pointer}
+.auth-alert{background:#fff0ee;border:1px solid #ffd1cb;border-radius:12px;color:#9f3328;font-size:12px;line-height:1.5;padding:12px;margin-bottom:15px}
+.auth-alert.success{background:#ebfaf3;border-color:#bcebd6;color:#116b50}
+.auth-footer{font-size:10px;line-height:1.6;color:#929eaa;text-align:center;border-top:1px solid #ecf0f2;margin:22px 0 0;padding-top:16px}
+.auth-notice{font-size:11px;line-height:1.6;color:#ac5e20;background:#fff6e9;border:1px solid #f5dfc3;padding:10px;border-radius:10px}
+@media(max-width:390px){.auth-card{padding:24px 19px}.auth-screen{padding:14px}}
