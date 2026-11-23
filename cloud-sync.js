@@ -12,6 +12,8 @@ const MYCARCloud = (() => {
   let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
   let knownRevision=null, restoreBarrierRevision=0;
   let lastError = null, lastRpcCheck = null, lastRpcWrite = null, restoreMaintenance = false;
+  const QA_TARGET='id_43d90c55-caa8-4c80-9489-f9b95fa4a856';
+  let qaLostAckArmed=false, qaLostAckResult=null;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -95,7 +97,22 @@ const MYCARCloud = (() => {
     try {
       const data=await request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
       if(name==='mycar_get_sync_state')lastRpcCheck={ok:true,at:new Date().toISOString()};
-      if(name==='mycar_apply_changes')lastRpcWrite={ok:true,at:new Date().toISOString()};
+      if(name==='mycar_apply_changes'){
+        lastRpcWrite={ok:true,at:new Date().toISOString()};
+        // Explicit, one-shot STAGING QA injection: the RPC already returned a
+        // successful committed result, but we deliberately withhold its ack.
+        // This tests the real sync-flight recovery path without cutting Wi-Fi.
+        if(qaLostAckArmed && payload?.p_operations?.length===1 &&
+           payload.p_operations[0].collection==='fuel' &&
+           payload.p_operations[0].record_id===QA_TARGET &&
+           data?.operation==='apply' && data?.ok===true){
+          qaLostAckArmed=false;
+          qaLostAckResult={stage:'ack-simulated-lost',requestId:payload.p_request_id,
+            beforeRevision:payload.p_expected_revision,commitRevision:data.revision,
+            at:new Date().toISOString()};
+          throw new Error('STAGING_QA_SIMULATED_LOST_ACK_AFTER_COMMIT');
+        }
+      }
       return data;
     } catch(error) {
       const code=String(error?.message||error);
@@ -236,7 +253,14 @@ const MYCARCloud = (() => {
         let status=null;
         try { status=await rpc('mycar_get_sync_state',{p_request_id:flight.requestId}); }
         catch (_) { /* Keep flight for retry. */ }
-        if(status?.request?.operation==='apply') result=status.request;
+        if(status?.request?.operation==='apply'){
+          result=status.request;
+          if(qaLostAckResult?.stage==='ack-simulated-lost' &&
+             qaLostAckResult.requestId===flight.requestId){
+            qaLostAckResult={...qaLostAckResult,stage:'status-recovered',
+              recoveredRevision:result.revision,at:new Date().toISOString()};
+          }
+        }
         else {
           if(String(error.message||'').includes('STALE_REVISION')){
             // The server rejected this revision; retain pending edits but release the stale flight.
@@ -287,6 +311,14 @@ const MYCARCloud = (() => {
       if(currentPendingCount()) await flushQueue(expectedGeneration);
       if(conflictKey) return; // Do not report successful sync while waiting for a decision.
       if(!currentPendingCount()){
+        if(qaLostAckResult?.stage==='status-recovered'){
+          qaLostAckResult={...qaLostAckResult,
+            stage:qaLostAckResult.commitRevision===qaLostAckResult.recoveredRevision &&
+                  qaLostAckResult.commitRevision===qaLostAckResult.beforeRevision+1 &&
+                  !readFlight()?'pass':'needs-review',
+            pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
+            at:new Date().toISOString()};
+        }
         knownRemote=clone(currentRemote);
         localStorage.setItem(baselineKey(),JSON.stringify(knownRemote));
         knownRevision=serverRevision;
@@ -339,6 +371,7 @@ const MYCARCloud = (() => {
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
+    qaLostAckArmed=false;qaLostAckResult=null;
     serverRevision=null;knownRemote=null;knownRevision=null;currentRemote=null;conflictKey=null;restoreBarrierRevision=0;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
@@ -356,6 +389,7 @@ const MYCARCloud = (() => {
       serverRevision,restoreBarrierRevision,baselineKnown:knownRemote!==null,baselineRevision:knownRevision,
       conflictWaiting:!!conflictKey, storedFlight:!!readFlight(),
       lastRpcCheck,lastRpcWrite,lastError,
+      qaLostAckArmed,qaLostAckResult,
       lastSuccessful:lastSuccessful?.toISOString()||null,
       projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
     };
@@ -388,5 +422,21 @@ const MYCARCloud = (() => {
       if(active)schedule(0);
     }
   }
-  return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,get pendingCount(){return currentPendingCount();}};
+  function armLostAckTest(){
+    if(AuthManager.config?.url!=='https://dlbshlvyhfwkorooxbnu.supabase.co'||
+       !active||busy||restoreMaintenance||currentPendingCount()||conflictKey||readFlight()||
+       serverRevision===null||!navigator.onLine)
+      throw new Error('STAGING must be online, idle, and fully synced with zero pending records.');
+    if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
+      throw new Error('The designated staging test Fuel record is missing.');
+    qaLostAckArmed=true;
+    qaLostAckResult={stage:'armed',beforeRevision:serverRevision,at:new Date().toISOString()};
+    return 'Test armed for the 10,409 km Fuel record only. Edit and save this record once.';
+  }
+  function cancelLostAckTest(){
+    qaLostAckArmed=false;
+    if(qaLostAckResult?.stage==='armed')qaLostAckResult={stage:'cancelled',at:new Date().toISOString()};
+  }
+  return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,armLostAckTest,cancelLostAckTest,
+    get pendingCount(){return currentPendingCount();}};
 })();
