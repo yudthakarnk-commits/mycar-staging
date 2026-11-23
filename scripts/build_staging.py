@@ -44,6 +44,31 @@ for rel in FILES:
     dest_file.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_file, dest_file)
 
+# STAGING-owned app files take precedence over upstream develop.
+# Previous build always published develop/cloud-sync.js and develop/index.html,
+# silently discarding tested staging-only RPC, diagnostics and conflict work.
+# Keep upstream-only binary assets and auxiliary scripts via FILES above.
+STAGING_OVERRIDES = [
+    'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
+    'sync-health.js', 'backup-preview.js', 'restore-dry-run.js',
+    'tng-import.js', 'vehicle-photos.js', 'service-worker.js',
+    'manifest.webmanifest', 'assets/app.css', 'assets/auth.css',
+    'assets/car-photos.css', 'assets/mobile-viewport-fix.css',
+    'assets/tng-import.css', 'assets/sync-health.css',
+    'assets/backup-preview.css'
+]
+for rel in STAGING_OVERRIDES:
+    override = Path(rel)
+    if not override.is_file():
+        raise SystemExit(f'Missing staging override: {rel}')
+    shutil.copy2(override, DEST / rel)
+
+# Ensure staging-specific icon paths referenced by staged index and manifest exist.
+icon = Path('icons/staging.svg')
+if not icon.is_file():
+    raise SystemExit('Missing staging icon icons/staging.svg')
+shutil.copy2(icon, DEST / 'icons/staging.svg')
+
 # Override production browser configuration. The actual PUBLIC key is resolved
 # only inside GitHub Actions. Browser-visible publishable keys are not secrets.
 config = {
@@ -88,23 +113,14 @@ index_path.write_text(html, encoding='utf-8')
 # production caches even though SW path scope differs. Make it staging-only.
 sw_path = DEST / 'service-worker.js'
 sw = sw_path.read_text(encoding='utf-8')
-sw, n_cache = re.subn(r"const CACHE='[^']+';", "const CACHE='mycar-staging-shell-v1';", sw, count=1)
-cache_prefixes = (
-    "key.startsWith('mycar-shell-')",
-    "key.startsWith('mycar-')",
-)
-
-matches = sum(sw.count(prefix) for prefix in cache_prefixes)
-
-if matches != 1:
-    raise SystemExit('Unexpected service worker cache filter.')
-
-for prefix in cache_prefixes:
-    sw = sw.replace(prefix, "key.startsWith('mycar-staging-')")
-
-n_filter = matches
-if n_cache != 1 or n_filter != 1:
-    raise SystemExit('Service worker cache isolation pattern changed; review manually.')
+# The current staging service worker already has an isolated cache name
+# and filter; never rewrite it using production assumptions.
+if "const CACHE='mycar-staging-" not in sw:
+    raise SystemExit('Expected a staging-only service worker CACHE')
+if "key.startsWith('mycar-staging-')" not in sw:
+    raise SystemExit('Expected staging-only cache cleanup')
+if "key.startsWith('mycar-shell-')" in sw or "key.startsWith('mycar-')" in sw:
+    raise SystemExit('Service worker has a non-staging cache cleanup')
 sw_path.write_text(sw, encoding='utf-8')
 
 manifest_path = DEST / 'manifest.webmanifest'
@@ -125,5 +141,12 @@ for p in DEST.rglob('*'):
 assert (DEST / 'auth-config.js').is_file()
 assert STAGING_URL in (DEST / 'auth-config.js').read_text(encoding='utf-8')
 assert 'mycar-staging-' in sw
-assert 'mycar-staging-' in sw
-print(f'STAGING BUILD VERIFIED: {len(FILES)+1} published files; isolated cache; staging auth config; no production URL.')
+published_index = (DEST / 'index.html').read_text(encoding='utf-8')
+published_sync = (DEST / 'cloud-sync.js').read_text(encoding='utf-8')
+assert 'Build 2026-11-23.4' in published_index, 'Staging build identifier missing'
+assert 'Open Sync Diagnostics' in published_index, 'Staging diagnostic button missing'
+assert 'mycar_apply_changes' in published_sync, 'Staging RPC sync missing'
+assert 'function diagnostics()' in published_sync, 'Staging diagnostic API missing'
+assert 'resolution=merge-duplicates' not in published_sync, 'Legacy direct write forbidden'
+assert 'https://pteskuyswmwppswzegxp.supabase.co' not in published_sync
+print(f'STAGING BUILD VERIFIED: {len(FILES)+2} published files; staging RPC client; diagnostics; isolated cache; staging auth config; no production URL.')
