@@ -219,7 +219,13 @@ const MYCARCloud = (() => {
         try { status=await rpc('mycar_get_sync_state',{p_request_id:flight.requestId}); }
         catch (_) { /* Keep flight for retry. */ }
         if(status?.request?.operation==='apply') result=status.request;
-        else throw error;
+        else {
+          if(String(error.message||'').includes('STALE_REVISION')){
+            // The server rejected this revision; retain pending edits but release the stale flight.
+            saveFlight(null);
+          }
+          throw error;
+        }
       }
       if (!active||generation!==expectedGeneration) return;
       serverRevision=Number(result.revision);
@@ -259,7 +265,8 @@ const MYCARCloud = (() => {
       const merged=stateFromRows(remote,local,pending);
       bridge.applyData(merged);
       if(currentPendingCount()) await flushQueue(expectedGeneration);
-      if(!currentPendingCount() && !conflictKey){
+      if(conflictKey) return; // Do not report successful sync while waiting for a decision.
+      if(!currentPendingCount()){
         knownRemote=clone(currentRemote);
         localStorage.setItem(baselineKey(),JSON.stringify(knownRemote));
       }
