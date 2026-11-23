@@ -61,7 +61,7 @@ function convert(file){
 }
 function controls(working){
  busy=working;
- for(const id of ['mycar-restore-file','mycar-restore-preview','mycar-restore-confirm-button','mycar-restore-reverse'])
+ for(const id of ['mycar-restore-file','mycar-restore-preview','mycar-restore-confirm-button','mycar-restore-reverse','mycar-restore-recover'])
   if(byId(id))byId(id).disabled=working;
 }
 async function chooseFile(event){
