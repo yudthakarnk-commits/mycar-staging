@@ -223,6 +223,13 @@ const MYCARCloud = (() => {
       }
       if (!active||generation!==expectedGeneration) return;
       serverRevision=Number(result.revision);
+      // Acknowledged writes become the new server baseline for subsequent local edits.
+      if(currentRemote){
+        for(const [,sent] of flight.entries){
+          const k=keyOf(sent.collection,sent.record_id);
+          currentRemote[k]={payload:sent.deleted?{}:clone(sent.payload),deleted:!!sent.deleted};
+        }
+      }
       for (const [key,sent] of flight.entries) {
         if(JSON.stringify(pending[key])===JSON.stringify(sent)) delete pending[key];
       }
