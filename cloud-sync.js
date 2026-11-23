@@ -10,7 +10,7 @@ const MYCARCloud = (() => {
   let pending = {}, queueKey = '', initializedKey = '', didInitialize = false;
   let bridge = null, generation = 0, lastSuccessful = null;
   let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
-  let lastError = null, lastRpcCheck = null, lastRpcWrite = null;
+  let lastError = null, lastRpcCheck = null, lastRpcWrite = null, restoreMaintenance = false;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -257,7 +257,7 @@ const MYCARCloud = (() => {
     throw new Error('Sync exceeds safe batch limit; remaining edits retained');
   }
   async function syncNow() {
-    if(!active || busy || !bridge || !AuthManager.currentUser || AuthManager.currentUser.id!==userId) return;
+    if(!active || busy || restoreMaintenance || !bridge || !AuthManager.currentUser || AuthManager.currentUser.id!==userId) return;
     if(typeof navigator.onLine==='boolean' && !navigator.onLine) {notify('Offline · changes saved locally','offline');return;}
     const expectedGeneration=generation;
     busy=true;
@@ -327,7 +327,7 @@ const MYCARCloud = (() => {
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
-    serverRevision=null;knownRemote=null;currentRemote=null;conflictKey=null;
+    serverRevision=null;knownRemote=null;currentRemote=null;conflictKey=null;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
   }
@@ -338,7 +338,7 @@ const MYCARCloud = (() => {
   function diagnostics(){
     return {
       clientVersion:'staging-conflict-v3-diagnostics',
-      active,online:navigator.onLine,busy,
+      active,online:navigator.onLine,busy,restoreMaintenance,
       pendingCount:currentPendingCount(),
       unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
       serverRevision, baselineKnown:knownRemote!==null,
@@ -348,5 +348,29 @@ const MYCARCloud = (() => {
       projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
     };
   }
-  return {start,stop,syncNow,onLocalChange,diagnostics,get pendingCount(){return currentPendingCount();}};
+  async function exclusiveRestore(action) {
+    if(!active || restoreMaintenance || busy || !bridge || !AuthManager.currentUser || AuthManager.currentUser.id!==userId)
+      throw new Error('Sync is busy or this account is not ready. Wait until Synced and retry.');
+    if(navigator.onLine===false)throw new Error('Restore requires an online connection.');
+    if(currentPendingCount()!==0 || readFlight() || conflictKey)
+      throw new Error('Pending edits or unresolved sync are present. Resolve them before Restore; nothing was changed.');
+    if(typeof action!=='function')throw new Error('Invalid restore operation');
+    restoreMaintenance=true;
+    if(timer)clearTimeout(timer);
+    timer=null;
+    try{
+      const value=await action();
+      // Restore/reverse commit changes cloud state outside the ordinary sync flight.
+      // Clear only the cached baseline (not an offline queue) and refresh from server.
+      serverRevision=null;currentRemote=null;knownRemote=null;
+      localStorage.removeItem(baselineKey());
+      localStorage.setItem(initializedKey,'true');
+      didInitialize=true;
+      return value;
+    }finally{
+      restoreMaintenance=false;
+      if(active)schedule(0);
+    }
+  }
+  return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,get pendingCount(){return currentPendingCount();}};
 })();
