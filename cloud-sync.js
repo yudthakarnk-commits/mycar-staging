@@ -10,6 +10,7 @@ const MYCARCloud = (() => {
   let pending = {}, queueKey = '', initializedKey = '', didInitialize = false;
   let bridge = null, generation = 0, lastSuccessful = null;
   let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
+  let knownRevision=null, restoreBarrierRevision=0;
   let lastError = null, lastRpcCheck = null, lastRpcWrite = null, restoreMaintenance = false;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -34,6 +35,7 @@ const MYCARCloud = (() => {
   }
   function saveQueue() { localStorage.setItem(queueKey,JSON.stringify(pending)); }
   const baselineKey=()=>queueKey+':baseline_v3';
+  const baselineRevisionKey=()=>queueKey+':baseline_revision_v3';
   function asMap(rows) {
     const out={};
     for(const row of rows)out[keyOf(row.collection,row.record_id)]={payload:row.deleted?{}:row.payload,deleted:!!row.deleted};
@@ -46,7 +48,7 @@ const MYCARCloud = (() => {
     pending[key]={collection,record_id:id,payload:deleted?{}:clone(payload),deleted:!!deleted,
       baseKnown:old ? old.baseKnown===true : knownRemote!==null,
       base:old ? old.base : (knownRemote===null?null:clone(knownRemote[key]??null)),
-      baseRevision:old?.baseRevision??serverRevision};
+      baseRevision:old?.baseRevision??knownRevision??serverRevision};
   }
   // Called by app.js after writing its local cache.
   function onLocalChange(before, after) {
@@ -145,8 +147,13 @@ const MYCARCloud = (() => {
   }
   function currentPendingCount(){return Object.keys(pending).length;}
   function conflictFor(remote) {
-    for(const [key,op] of Object.entries(pending))
-      if(op.baseKnown!==true || !same(op.base,remote[key]??null))return {key,op};
+    for(const [key,op] of Object.entries(pending)){
+      const base=Number(op.baseRevision);
+      const crossedRestoreBarrier=restoreBarrierRevision>0 &&
+        (!Number.isSafeInteger(base) || base<restoreBarrierRevision);
+      if(op.baseKnown!==true || crossedRestoreBarrier || !same(op.base,remote[key]??null))
+        return {key,op,reason:crossedRestoreBarrier?'Old offline change predates a server Restore.':null};
+    }
     return null;
   }
   function showConflict(c) {
@@ -164,7 +171,7 @@ const MYCARCloud = (() => {
     }
     div.style.display='flex';
     div.querySelector('#mycar-conflict-text').textContent=c.op.collection+' / '+c.op.record_id+
-      (c.op.baseKnown?' changed on the server.':' has unknown original version (previous offline queue).');
+      (c.reason?' — '+c.reason:c.op.baseKnown?' changed on the server.':' has unknown original version (previous offline queue).');
     notify('Conflict · choose a version','error');
   }
   function resolveConflict(useLocal){
@@ -270,6 +277,7 @@ const MYCARCloud = (() => {
       if(Number(beforeState.revision)!==Number(afterState.revision))
         throw new Error('Cloud changed during download; retry sync');
       serverRevision=Number(afterState.revision);
+      restoreBarrierRevision=Number(afterState.restore_barrier_revision||0);
       currentRemote=asMap(remote);
       if(!active || generation!==expectedGeneration) return;
       const local=bridge.getData();
@@ -281,6 +289,8 @@ const MYCARCloud = (() => {
       if(!currentPendingCount()){
         knownRemote=clone(currentRemote);
         localStorage.setItem(baselineKey(),JSON.stringify(knownRemote));
+        knownRevision=serverRevision;
+        localStorage.setItem(baselineRevisionKey(),String(knownRevision));
       }
       if(!active || generation!==expectedGeneration) return;
       localStorage.setItem(initializedKey,'true');
@@ -312,7 +322,9 @@ const MYCARCloud = (() => {
     pending=readQueue();
     try{const old=JSON.parse(localStorage.getItem(baselineKey())||'null');knownRemote=old&&typeof old==='object'&&!Array.isArray(old)?old:null;}
     catch(_){knownRemote=null;}
-    currentRemote=null;conflictKey=null;
+    const rev=localStorage.getItem(baselineRevisionKey());
+    knownRevision=rev!==null && Number.isSafeInteger(Number(rev))?Number(rev):null;
+    currentRemote=null;conflictKey=null;restoreBarrierRevision=0;
     didInitialize=localStorage.getItem(initializedKey)==='true';
     active=true;
     generation++;
@@ -327,7 +339,7 @@ const MYCARCloud = (() => {
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
-    serverRevision=null;knownRemote=null;currentRemote=null;conflictKey=null;restoreMaintenance=false;
+    serverRevision=null;knownRemote=null;knownRevision=null;currentRemote=null;conflictKey=null;restoreBarrierRevision=0;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
   }
@@ -341,7 +353,7 @@ const MYCARCloud = (() => {
       active,online:navigator.onLine,busy,restoreMaintenance,
       pendingCount:currentPendingCount(),
       unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
-      serverRevision, baselineKnown:knownRemote!==null,
+      serverRevision,restoreBarrierRevision,baselineKnown:knownRemote!==null,baselineRevision:knownRevision,
       conflictWaiting:!!conflictKey, storedFlight:!!readFlight(),
       lastRpcCheck,lastRpcWrite,lastError,
       lastSuccessful:lastSuccessful?.toISOString()||null,
@@ -365,6 +377,8 @@ const MYCARCloud = (() => {
       if(options.mutates!==false){
         serverRevision=null;currentRemote=null;knownRemote=null;
         localStorage.removeItem(baselineKey());
+        localStorage.removeItem(baselineRevisionKey());
+        knownRevision=null;
         localStorage.setItem(initializedKey,'true');
         didInitialize=true;
       }
