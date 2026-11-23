@@ -11,6 +11,7 @@ let prepared=null, preview=null, busy=false;
 const byId=id=>document.getElementById(id);
 const label=(text,color)=>{const x=byId('mycar-restore-status');if(x){x.textContent=text;x.style.color=color||'#1e3a8a';}};
 const key=()=> 'mycar_staging_restore_v1:'+AuthManager.projectId+':'+AuthManager.currentUser.id;
+const flightKey=()=>key()+':pending_request';
 function ready(){
  if(AuthManager.config?.url!==PROJECT || !AuthManager.currentUser?.id)
   throw Error('Restore is restricted to a signed-in MYCAR-STAGING account.');
@@ -100,6 +101,7 @@ function readyForPreview(){
  if(!d.active||d.busy||d.pendingCount||d.storedFlight||d.conflictWaiting||d.restoreMaintenance)
   throw Error('Wait for the Sync queue to be empty and idle before Restore.');
  if(navigator.onLine===false)throw Error('Requires an online connection.');
+ if(localStorage.getItem(flightKey()))throw Error('An earlier Restore request has an unconfirmed outcome. Use Recover Operation Status first.');
 }
 async function resolvedWrite(name,params){
  const requestId=params.p_request_id;
@@ -126,6 +128,7 @@ async function commitRestore(){
    const current=await call('mycar_get_sync_state',{p_request_id:null});
    if(Number(current.revision)!==Number(preview.revision))
     throw Error('STALE_REVISION: server changed after Preview. Preview the backup again.');
+   localStorage.setItem(flightKey(),JSON.stringify({kind:'restore',requestId:id,at:new Date().toISOString()}));
    return resolvedWrite('mycar_restore_merge',{
     p_expected_revision:preview.revision,p_request_id:id,p_backup:prepared,
     p_confirmation_token:preview.confirmation_token
@@ -133,6 +136,7 @@ async function commitRestore(){
   });
   if(result?.operation!=='restore'||!result.ok)throw Error('Unexpected restore response: do not retry with a new request ID.');
   localStorage.setItem(key(),JSON.stringify({requestId:id,revision:result.revision,createdAt:new Date().toISOString()}));
+  localStorage.removeItem(flightKey());
   prepared=null;preview=null;
   byId('mycar-restore-commit').hidden=true;
   byId('mycar-restore-confirm').value='';
@@ -157,16 +161,45 @@ async function reverseRestore(){
    const st=await call('mycar_get_sync_state',{p_request_id:original.requestId});
    if(st?.request?.operation!=='restore' || Number(st.revision)!==Number(original.revision))
     throw Error('Reverse requires the immediate restore revision. Another write may have occurred.');
+   localStorage.setItem(flightKey(),JSON.stringify({kind:'reverse',requestId:reqId,at:new Date().toISOString()}));
    return resolvedWrite('mycar_reverse_restore',{
     p_expected_revision:original.revision,p_request_id:reqId,p_original_request_id:original.requestId
    });
   });
   if(result?.operation!=='reverse'||!result.ok)throw Error('Unexpected reverse result; check operation status.');
   localStorage.removeItem(key());
+  localStorage.removeItem(flightKey());
   byId('mycar-restore-reverse').hidden=true;
   label('REVERSE RESTORE COMMITTED · revision '+result.revision+'. Original server snapshot restored.');
  }catch(e){label('Reverse NOT confirmed: '+e.message,'#b91c1c');}
  finally{controls(false);}
+}
+async function recoverOperation(){
+ if(!AuthManager.currentUser?.id||AuthManager.config?.url!==PROJECT)return label('Sign in to STAGING before recovery.','#b91c1c');
+ let flight;
+ try{flight=JSON.parse(localStorage.getItem(flightKey())||'null')}
+ catch(_){return label('Stored operation cannot be read. Preserve browser storage and request assistance.','#b91c1c')}
+ if(!flight?.requestId)return label('No unconfirmed Restore request found.');
+ controls(true);
+ try{
+  const data=await MYCARCloud.exclusiveRestore(()=>call('mycar_get_sync_state',{p_request_id:flight.requestId}),{mutates:false});
+  if(data?.request?.operation===flight.kind && data.request.ok){
+   const op=data.request;
+   if(flight.kind==='restore'){
+    localStorage.setItem(key(),JSON.stringify({requestId:flight.requestId,revision:op.revision,createdAt:flight.at}));
+    byId('mycar-restore-reverse').hidden=false;
+   }else{
+    localStorage.removeItem(key());
+    byId('mycar-restore-reverse').hidden=true;
+   }
+   localStorage.removeItem(flightKey());
+   label('Recovered committed '+flight.kind+' request at revision '+op.revision+'.');
+   MYCARCloud.syncNow();
+  }else{
+   label('The original request is not confirmed on Server. Keep browser storage; do not start a new Restore request.','#b91c1c');
+  }
+ }catch(e){label('Recovery check failed: '+e.message,'#b91c1c')}
+ finally{controls(false)}
 }
 function init(){
  const box=byId('mycar-rpc-restore');if(!box)return;
@@ -174,6 +207,9 @@ function init(){
  byId('mycar-restore-preview').addEventListener('click',doPreview);
  byId('mycar-restore-confirm-button').addEventListener('click',commitRestore);
  byId('mycar-restore-reverse').addEventListener('click',reverseRestore);
+ byId('mycar-restore-recover').addEventListener('click',recoverOperation);
+ // Reverse remains accessible after a page refresh; the server enforces revision eligibility.
+ byId('mycar-restore-reverse').hidden=false;
  const msg='RPC Merge Restore (STAGING): Preview first. Never clear data or delete records to test Restore.';
  label(msg);
 }
