@@ -62,6 +62,19 @@ RPCs are `SECURITY DEFINER` owned by `postgres`; their implementation and authen
 
 **Do not count test simulations as live physical-network tests.**
 
+## 3A. Security Advisor — live STAGING scan
+
+Read-only Supabase Security Advisor executed 2026-11-23T14:37:44Z. Three warning categories:
+
+1. **Public can execute SECURITY DEFINER**: `public.rls_auto_enable()` has `anon` EXECUTE. This function is a preexisting enabled `ddl_command_end` event-trigger handler. Its direct API invocation may fail because event-trigger functions have special invocation semantics, but the exposed EXECUTE grant is unnecessary unless independently justified. Review and consider revoking `EXECUTE` from `PUBLIC`, `anon`, `authenticated` for this **preexisting** function, after confirming the trigger still runs with its owner privileges.
+   - [Supabase advisor 0028](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable)
+2. **Authenticated can execute SECURITY DEFINER**: 6 findings — the 5 account-scoped MYCAR RPCs deliberately require `authenticated` access, plus the preexisting `rls_auto_enable()`. These are warnings, **not proof of a vulnerability**. Preserve the five RPC grants pending focused security review of their SQL, `auth.uid()` behavior, locking and explicit input constraints.
+   - [Supabase advisor 0029](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+3. **Leaked Password Protection Disabled** in Supabase Auth. Consider enabling after reviewing feature availability and authentication impact.
+   - [Supabase Auth password security](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+
+**No grant or auth setting was changed as part of this scan.**
+
 ## 4. Risk register / blocking gates
 
 1. **Mid-flight connection loss (NET-02B):** must interrupt a genuine outstanding `mycar_apply_changes` request, then record whether it committed, persistent request ID, revision, operation count and pending state. An ambiguous result stays INCONCLUSIVE; do not blindly change Fuel repeatedly.
