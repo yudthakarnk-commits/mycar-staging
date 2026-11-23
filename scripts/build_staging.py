@@ -51,7 +51,7 @@ for rel in FILES:
 STAGING_OVERRIDES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
     'sync-health.js', 'backup-preview.js', 'restore-dry-run.js',
-    'tng-import.js', 'vehicle-photos.js', 'service-worker.js',
+    'rpc-restore-staging.js', 'tng-import.js', 'vehicle-photos.js', 'service-worker.js',
     'manifest.webmanifest', 'assets/app.css', 'assets/auth.css',
     'assets/car-photos.css', 'assets/mobile-viewport-fix.css',
     'assets/tng-import.css', 'assets/sync-health.css',
@@ -147,6 +147,15 @@ assert 'Build 2026-11-23.4' in published_index, 'Staging build identifier missin
 assert 'Open Sync Diagnostics' in published_index, 'Staging diagnostic button missing'
 assert 'mycar_apply_changes' in published_sync, 'Staging RPC sync missing'
 assert 'function diagnostics()' in published_sync, 'Staging diagnostic API missing'
+assert 'exclusiveRestore' in published_sync, 'Restore maintenance lock missing'
+assert 'rpc-restore-staging.js' in published_index, 'Restore UI script missing'
+assert 'mycar-rpc-restore' in published_index, 'Restore UI missing'
+assert (DEST / 'rpc-restore-staging.js').is_file(), 'RPC Restore module missing'
+published_restore = (DEST / 'rpc-restore-staging.js').read_text(encoding='utf-8')
+assert 'mycar_restore_preview' in published_restore
+assert 'mycar_restore_merge' in published_restore
+assert 'mycar_reverse_restore' in published_restore
+assert 'https://pteskuyswmwppswzegxp.supabase.co' not in published_restore
 assert 'resolution=merge-duplicates' not in published_sync, 'Legacy direct write forbidden'
 assert 'https://pteskuyswmwppswzegxp.supabase.co' not in published_sync
 print(f'STAGING BUILD VERIFIED: {len(FILES)+2} published files; staging RPC client; diagnostics; isolated cache; staging auth config; no production URL.')
