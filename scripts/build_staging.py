@@ -143,10 +143,12 @@ assert STAGING_URL in (DEST / 'auth-config.js').read_text(encoding='utf-8')
 assert 'mycar-staging-' in sw
 published_index = (DEST / 'index.html').read_text(encoding='utf-8')
 published_sync = (DEST / 'cloud-sync.js').read_text(encoding='utf-8')
-assert 'Build 2026-11-23.6' in published_index, 'Staging build identifier missing'
+assert 'Build 2026-11-23.7' in published_index, 'Staging build identifier missing'
 assert 'Open Sync Diagnostics' in published_index, 'Staging diagnostic button missing'
 assert 'mycar_apply_changes' in published_sync, 'Staging RPC sync missing'
 assert 'function diagnostics()' in published_sync, 'Staging diagnostic API missing'
+assert 'armLostAckTest' in published_sync and 'qaLostAckResult' in published_sync, 'Timeout QA controls missing'
+assert 'Arm One-Time Lost-Ack Test' in published_index, 'Timeout QA UI missing'
 assert 'exclusiveRestore' in published_sync, 'Restore maintenance lock missing'
 assert 'rpc-restore-staging.js' in published_index, 'Restore UI script missing'
 assert 'mycar-rpc-restore' in published_index, 'Restore UI missing'
