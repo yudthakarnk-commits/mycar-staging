@@ -143,7 +143,7 @@ assert STAGING_URL in (DEST / 'auth-config.js').read_text(encoding='utf-8')
 assert 'mycar-staging-' in sw
 published_index = (DEST / 'index.html').read_text(encoding='utf-8')
 published_sync = (DEST / 'cloud-sync.js').read_text(encoding='utf-8')
-assert 'Build 2026-11-23.5' in published_index, 'Staging build identifier missing'
+assert 'Build 2026-11-23.6' in published_index, 'Staging build identifier missing'
 assert 'Open Sync Diagnostics' in published_index, 'Staging diagnostic button missing'
 assert 'mycar_apply_changes' in published_sync, 'Staging RPC sync missing'
 assert 'function diagnostics()' in published_sync, 'Staging diagnostic API missing'
@@ -155,6 +155,7 @@ published_restore = (DEST / 'rpc-restore-staging.js').read_text(encoding='utf-8'
 assert 'mycar_restore_preview' in published_restore
 assert 'mycar_restore_merge' in published_restore
 assert 'mycar_reverse_restore' in published_restore
+assert 'refreshReverseButton' in published_restore
 assert 'https://pteskuyswmwppswzegxp.supabase.co' not in published_restore
 assert 'resolution=merge-duplicates' not in published_sync, 'Legacy direct write forbidden'
 assert 'https://pteskuyswmwppswzegxp.supabase.co' not in published_sync
