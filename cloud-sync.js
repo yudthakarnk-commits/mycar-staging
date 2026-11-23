@@ -348,7 +348,7 @@ const MYCARCloud = (() => {
       projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
     };
   }
-  async function exclusiveRestore(action) {
+  async function exclusiveRestore(action, options={}) {
     if(!active || restoreMaintenance || busy || !bridge || !AuthManager.currentUser || AuthManager.currentUser.id!==userId)
       throw new Error('Sync is busy or this account is not ready. Wait until Synced and retry.');
     if(navigator.onLine===false)throw new Error('Restore requires an online connection.');
@@ -362,10 +362,12 @@ const MYCARCloud = (() => {
       const value=await action();
       // Restore/reverse commit changes cloud state outside the ordinary sync flight.
       // Clear only the cached baseline (not an offline queue) and refresh from server.
-      serverRevision=null;currentRemote=null;knownRemote=null;
-      localStorage.removeItem(baselineKey());
-      localStorage.setItem(initializedKey,'true');
-      didInitialize=true;
+      if(options.mutates!==false){
+        serverRevision=null;currentRemote=null;knownRemote=null;
+        localStorage.removeItem(baselineKey());
+        localStorage.setItem(initializedKey,'true');
+        didInitialize=true;
+      }
       return value;
     }finally{
       restoreMaintenance=false;
