@@ -82,7 +82,7 @@ async function doPreview(){
  controls(true);
  try{
   readyForPreview();
-  preview=await MYCARCloud.exclusiveRestore(()=>call('mycar_restore_preview',{p_backup:prepared}));
+  preview=await MYCARCloud.exclusiveRestore(()=>call('mycar_restore_preview',{p_backup:prepared}),{mutates:false});
   if(preview.mode!=='merge-only'||!Number.isSafeInteger(Number(preview.revision))||!preview.confirmation_token)
    throw Error('Unexpected restore preview response.');
   byId('mycar-restore-summary').textContent=
