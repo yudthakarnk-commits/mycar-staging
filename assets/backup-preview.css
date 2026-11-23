@@ -1,0 +1,10 @@
+/* MYCAR v3.4.4 Phase 2: scoped inspector UI */
+.mycar-backup-preview{border:1px solid #a7f3d0;background:#f0fdf4;color:#0f172a;border-radius:14px;padding:12px;font-size:12px;overflow-wrap:anywhere}
+.mycar-backup-preview[hidden]{display:none}
+.mycar-backup-preview strong{display:block;margin-bottom:7px}
+.mycar-backup-preview__status{font-weight:700;margin:5px 0}
+.mycar-backup-preview__status[data-valid="false"]{color:#991b1b}
+.mycar-backup-preview__results{max-height:210px;overflow:auto;background:#fff;border-radius:8px;padding:8px}
+.mycar-backup-preview__results p{margin:6px 0;line-height:1.5}
+.mycar-backup-preview__error{color:#991b1b}
+.mycar-backup-preview__warning{color:#92400e}
