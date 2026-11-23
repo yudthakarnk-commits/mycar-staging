@@ -1,7 +1,7 @@
 /* MYCAR per-user cloud synchronization (Supabase PostgREST, no secret keys).
  * A record is one row; deletions are durable tombstones. Other devices poll
  * changes every 15 seconds and on focus; pending offline edits upload on reconnect.
- * Simultaneous edits to the same record are last-write-wins.
+ * Conflicts are never automatically resolved by last-write-wins.
  */
 const MYCARCloud = (() => {
   const COLLECTIONS = ['vehicles','fuel','maintenance','tax','trips','other'];
@@ -9,7 +9,7 @@ const MYCARCloud = (() => {
   let active = false, userId = '', projectId = '', timer = null, busy = false;
   let pending = {}, queueKey = '', initializedKey = '', didInitialize = false;
   let bridge = null, generation = 0, lastSuccessful = null;
-  let serverRevision = null;
+  let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -32,9 +32,20 @@ const MYCARCloud = (() => {
     return {};
   }
   function saveQueue() { localStorage.setItem(queueKey,JSON.stringify(pending)); }
+  const baselineKey=()=>queueKey+':baseline_v3';
+  function asMap(rows) {
+    const out={};
+    for(const row of rows)out[keyOf(row.collection,row.record_id)]={payload:row.deleted?{}:row.payload,deleted:!!row.deleted};
+    return out;
+  }
+  const same=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
   function queueEntry(collection, id, payload, deleted) {
     if(!COLLECTIONS.includes(collection)||!isSafeRecord({id})) return;
-    pending[keyOf(collection,id)]={collection,record_id:id,payload:deleted?{}:clone(payload),deleted:!!deleted};
+    const key=keyOf(collection,id),old=pending[key];
+    pending[key]={collection,record_id:id,payload:deleted?{}:clone(payload),deleted:!!deleted,
+      baseKnown:old ? old.baseKnown===true : knownRemote!==null,
+      base:old ? old.base : (knownRemote===null?null:clone(knownRemote[key]??null)),
+      baseRevision:old?.baseRevision??serverRevision};
   }
   // Called by app.js after writing its local cache.
   function onLocalChange(before, after) {
@@ -122,6 +133,41 @@ const MYCARCloud = (() => {
     return merged;
   }
   function currentPendingCount(){return Object.keys(pending).length;}
+  function conflictFor(remote) {
+    for(const [key,op] of Object.entries(pending))
+      if(op.baseKnown!==true || !same(op.base,remote[key]??null))return {key,op};
+    return null;
+  }
+  function showConflict(c) {
+    conflictKey=c.key;
+    let div=document.getElementById('mycar-conflict-dialog');
+    if(!div){
+      div=document.createElement('div');div.id='mycar-conflict-dialog';
+      Object.assign(div.style,{position:'fixed',inset:'0',zIndex:'2147483647',background:'#071527da',display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'});
+      const box=document.createElement('div');
+      Object.assign(box.style,{background:'white',color:'#111827',maxWidth:'460px',width:'100%',borderRadius:'14px',padding:'20px',fontFamily:'system-ui,sans-serif'});
+      box.innerHTML='<h2 style="font-size:20px;font-weight:700">Sync conflict</h2><p id="mycar-conflict-text"></p><p style="font-size:12px">Your unsent change is retained until you choose.</p><button type="button" id="mycar-use-server" style="padding:10px;background:#ddd;margin:8px">Keep server</button><button type="button" id="mycar-use-local" style="padding:10px;background:#047857;color:white;margin:8px">Use my change</button>';
+      div.appendChild(box);document.body.appendChild(div);
+      box.querySelector('#mycar-use-server').onclick=()=>resolveConflict(false);
+      box.querySelector('#mycar-use-local').onclick=()=>resolveConflict(true);
+    }
+    div.style.display='flex';
+    div.querySelector('#mycar-conflict-text').textContent=c.op.collection+' / '+c.op.record_id+
+      (c.op.baseKnown?' changed on the server.':' has unknown original version (previous offline queue).');
+    notify('Conflict · choose a version','error');
+  }
+  function resolveConflict(useLocal){
+    if(!conflictKey)return;
+    const key=conflictKey,op=pending[key];
+    if(op){
+      if(useLocal){op.baseKnown=true;op.base=clone(currentRemote?.[key]??null);op.baseRevision=serverRevision;}
+      else delete pending[key];
+      saveQueue();
+    }
+    saveFlight(null);conflictKey=null;
+    const d=document.getElementById('mycar-conflict-dialog');if(d)d.style.display='none';
+    schedule(0);
+  }
   function addAllLocalToQueue(local) {
     for(const collection of COLLECTIONS)
       for(const record of local[collection]||[]) if(isSafeRecord(record)) queueEntry(collection,record.id,record,false);
@@ -130,6 +176,21 @@ const MYCARCloud = (() => {
   async function flushQueue(expectedGeneration) {
     if (serverRevision === null) throw new Error('Account revision unavailable');
     let flight=readFlight();
+    // Check a preexisting request before any conflict decision. It may already be committed.
+    if(flight){
+      const status=await rpc('mycar_get_sync_state',{p_request_id:flight.requestId});
+      if(status?.request?.operation==='apply'){
+        serverRevision=Number(status.request.revision);
+        for(const [key,sent] of flight.entries){
+          if(pending[key] && same(pending[key].payload,sent.payload) && pending[key].deleted===sent.deleted)delete pending[key];
+        }
+        saveQueue();saveFlight(null);
+        return;
+      }
+      // Never replay an unconfirmed old request without preserving its original revision.
+    }
+    const collision=conflictFor(currentRemote||{});
+    if(collision){showConflict(collision);return;}
     for (let attempt=0;attempt<100;attempt++) {
       if (!active||generation!==expectedGeneration) return;
       if (!flight) {
@@ -184,12 +245,17 @@ const MYCARCloud = (() => {
       if(Number(beforeState.revision)!==Number(afterState.revision))
         throw new Error('Cloud changed during download; retry sync');
       serverRevision=Number(afterState.revision);
+      currentRemote=asMap(remote);
       if(!active || generation!==expectedGeneration) return;
       const local=bridge.getData();
       if(!didInitialize && remote.length===0 && !currentPendingCount()) addAllLocalToQueue(local);
       const merged=stateFromRows(remote,local,pending);
       bridge.applyData(merged);
       if(currentPendingCount()) await flushQueue(expectedGeneration);
+      if(!currentPendingCount() && !conflictKey){
+        knownRemote=clone(currentRemote);
+        localStorage.setItem(baselineKey(),JSON.stringify(knownRemote));
+      }
       if(!active || generation!==expectedGeneration) return;
       localStorage.setItem(initializedKey,'true');
       didInitialize=true;
@@ -217,6 +283,9 @@ const MYCARCloud = (() => {
     queueKey=`mycar_sync_pending_v1:${projectId}:${userId}`;
     initializedKey=`mycar_sync_initialized_v1:${projectId}:${userId}`;
     pending=readQueue();
+    try{const old=JSON.parse(localStorage.getItem(baselineKey())||'null');knownRemote=old&&typeof old==='object'&&!Array.isArray(old)?old:null;}
+    catch(_){knownRemote=null;}
+    currentRemote=null;conflictKey=null;
     didInitialize=localStorage.getItem(initializedKey)==='true';
     active=true;
     generation++;
@@ -231,7 +300,8 @@ const MYCARCloud = (() => {
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;
-    serverRevision=null;
+    serverRevision=null;knownRemote=null;currentRemote=null;conflictKey=null;
+    const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
   }
   window.addEventListener('online',()=>{if(active)schedule(0);});
