@@ -204,6 +204,12 @@ async function recoverOperation(){
  }catch(e){label('Recovery check failed: '+e.message,'#b91c1c')}
  finally{controls(false)}
 }
+function refreshReverseButton(){
+ const button=byId('mycar-restore-reverse');
+ if(!button)return;
+ try{button.hidden=!(AuthManager.currentUser?.id && localStorage.getItem(key()));}
+ catch(_){button.hidden=true;}
+}
 function init(){
  const box=byId('mycar-rpc-restore');if(!box)return;
  byId('mycar-restore-file').addEventListener('change',chooseFile);
@@ -211,10 +217,11 @@ function init(){
  byId('mycar-restore-confirm-button').addEventListener('click',commitRestore);
  byId('mycar-restore-reverse').addEventListener('click',reverseRestore);
  byId('mycar-restore-recover').addEventListener('click',recoverOperation);
- // Reverse remains accessible after a page refresh; the server enforces revision eligibility.
- byId('mycar-restore-reverse').hidden=false;
+ // Show Reverse only for the signed-in account with a locally confirmed Restore.
+ refreshReverseButton();
  const msg='RPC Merge Restore (STAGING): Preview first. Never clear data or delete records to test Restore.';
  label(msg);
 }
+window.MYCARRestoreStaging={refreshReverseButton};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
