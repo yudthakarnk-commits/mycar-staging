@@ -1168,6 +1168,11 @@
         }
 
         function importJSON(event) {
+            // STAGING SAFETY: legacy local replacement bypasses server-side restore protocol.
+            // Keep export functionality; restore requires controlled RPC workflow.
+            if (event?.target) event.target.value='';
+            alert('STAGING: Legacy JSON restore is disabled until server-side Restore RPC UI passes acceptance tests.');
+            return;
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
