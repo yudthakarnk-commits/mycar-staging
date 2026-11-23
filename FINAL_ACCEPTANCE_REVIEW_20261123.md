@@ -56,7 +56,7 @@ RPCs are `SECURITY DEFINER` owned by `postgres`; their implementation and authen
 | Direct writes revoked; new RPC client works | Persistent STAGING revoke + browser write; DB revision 19→20 | PASS |
 | Direct read preserved and anon access denied | Role grants checked | PASS |
 | Real mid-flight network disconnection | Earlier attempts completed with 200 before disconnect | **OPEN** |
-| External verified latest full-account backup + import/restore rehearsal | Historical backup and per-restore snapshots exist; current fresh export not independently inspected | **OPEN** |
+| Latest app-format backup + merge/reverse rollback rehearsal | Uploaded 11 active records exactly checked; restore/reverse within rolled-back transaction | **PASS — APP DATA ONLY** |
 | Production deployment rollback & compatibility | Not performed | **OPEN** |
 | Repeat security-advisor review of Production-target DDL/RPC | Not completed | **OPEN** |
 
@@ -101,10 +101,13 @@ This reopens bypass writes and must only be temporary. Keep the owner RLS and cu
 3. Perform security-advisor review and address any actionable findings.
 4. Prepare Production-specific migration and rollback plan but **do not execute** until separate approval.
 
+## 6A. Uploaded latest backup rehearsal — completed
+An application-format backup of **11 active records**, SHA-256 `1825f1c05284bb1518ced99a2b6a097a5a2b232528acd9a27b72c77309bd9d66`, was uploaded. The 11 payloads were checked against current STAGING. In a single SQL transaction, the 11 entries were previewed, merged, immediately reversed and compared with the exact previous account snapshot, including tombstones and timestamps. The transaction was **rolled back**; persisted revision 20, operations 20, snapshots 4, records 15, tombstones 4 and test Fuel 35 L remained unchanged. **Application Backup / Merge/Reverse Rehearsal: PASS.** This does **not** constitute a full database disaster recovery test. See [rehearsal record](STAGING_UPLOADED_BACKUP_ROLLBACK_REHEARSAL_20261123.md).
+
 ## 7. Final review disposition
 
-**STAGING RPC and rollback safety tests: largely PASS.**  
+**STAGING RPC, application-backup merge/reverse and rollback safety tests: largely PASS.**  
 **Legacy Direct Write Lockdown: PASS on STAGING, persistent.**  
-**Production Cutover: BLOCKED pending NET-02B, latest backup verification, code/security review, and Production-specific rollback plan.**
+**Production Cutover: BLOCKED pending NET-02B, full database disaster recovery test, code/security review, and Production-specific rollback plan.**
 
 No Production files, credentials, data or database grants were touched by this report.
