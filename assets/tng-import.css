@@ -1,0 +1,21 @@
+/* MYCAR small, stable sync indicator — no changing header text width */
+.mycar-sync-dot-button {flex:0 0 24px;width:24px;height:30px;border:0;background:transparent;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.mycar-sync-dot {display:block;width:10px;height:10px;background:#94a3b8;border-radius:100%;box-shadow:0 0 0 3px rgba(148,163,184,.16);}
+.mycar-sync-dot-button[data-sync-state="success"] .mycar-sync-dot {background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.2)}
+.mycar-sync-dot-button[data-sync-state="working"] .mycar-sync-dot,.mycar-sync-dot-button[data-sync-state="pending"] .mycar-sync-dot {background:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.18)}
+.mycar-sync-dot-button[data-sync-state="error"] .mycar-sync-dot {background:#fb7185;box-shadow:0 0 0 3px rgba(251,113,133,.18)}
+/* Monthly PDF import: preview-and-confirm, no silent financial writes. */
+.tng-overlay{position:fixed;inset:0;z-index:140;background:rgba(2,6,23,.77);display:flex;align-items:center;justify-content:center;padding:14px}
+.tng-overlay[hidden],.tng-panel [hidden]{display:none!important}
+.tng-panel{width:100%;max-width:600px;max-height:91dvh;overflow:auto;background:#fff;color:#0f172a;border-radius:22px;padding:20px;box-shadow:0 24px 75px rgba(0,0,0,.28);font-family:Inter,system-ui,sans-serif}
+.tng-heading{display:flex;justify-content:space-between;align-items:start;gap:12px}.tng-heading h2{font-size:18px;font-weight:800}.tng-heading p{font-size:11px;color:#64748b;margin:4px 0 12px;line-height:1.5}
+#tng-close{font-size:26px;line-height:1;cursor:pointer;padding:0 8px;background:transparent;border:none;color:#64748b}
+.tng-label{display:block;color:#334155;font-size:12px;font-weight:700;margin:12px 0 4px}
+#tng-file,#tng-password{display:block;width:100%;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:13px}
+.tng-primary{display:block;width:100%;background:#059669;color:#fff;border:0;border-radius:12px;padding:12px;font-size:13px;font-weight:750;margin:14px 0;cursor:pointer}
+.tng-primary:disabled{opacity:.45;cursor:not-allowed}
+.tng-message{font-size:12px;line-height:1.5;color:#475569;min-height:22px}.tng-message.tng-error{color:#b91c1c}
+.tng-stats{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.tng-stats span{border-radius:999px;padding:6px 9px;background:#ecfdf5;color:#065f46;font-size:11px;font-weight:700}
+.tng-preview{max-height:34dvh;overflow:auto;border:1px solid #e2e8f0;border-radius:10px}.tng-preview table{font-size:10px;border-collapse:collapse;width:100%;min-width:455px}.tng-preview th{position:sticky;top:0;background:#f1f5f9;padding:7px;text-align:left}.tng-preview td{padding:7px;border-bottom:1px solid #e2e8f0;vertical-align:top}.tng-new{color:#047857;font-weight:800}.tng-duplicate{color:#64748b}.tng-note{font-size:11px;color:#64748b;line-height:1.5;margin:12px 0}
+
+.mycar-sync-dot-button[data-sync-state="offline"] .mycar-sync-dot{background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.25)}
