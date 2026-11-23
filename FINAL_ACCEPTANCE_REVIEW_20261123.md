@@ -104,6 +104,11 @@ This reopens bypass writes and must only be temporary. Keep the owner RLS and cu
 ## 6A. Uploaded latest backup rehearsal — completed
 An application-format backup of **11 active records**, SHA-256 `1825f1c05284bb1518ced99a2b6a097a5a2b232528acd9a27b72c77309bd9d66`, was uploaded. The 11 payloads were checked against current STAGING. In a single SQL transaction, the 11 entries were previewed, merged, immediately reversed and compared with the exact previous account snapshot, including tombstones and timestamps. The transaction was **rolled back**; persisted revision 20, operations 20, snapshots 4, records 15, tombstones 4 and test Fuel 35 L remained unchanged. **Application Backup / Merge/Reverse Rehearsal: PASS.** This does **not** constitute a full database disaster recovery test. See [rehearsal record](STAGING_UPLOADED_BACKUP_ROLLBACK_REHEARSAL_20261123.md).
 
+## 6B. Security hardening following next-phase approval
+The preexisting `public.rls_auto_enable()` event-trigger SECURITY DEFINER function had unnecessary `anon` and `authenticated` EXECUTE grants. A rollback-only exercise proved that revoking EXECUTE does not stop the automatic RLS-enable DDL event trigger. Permanent STAGING-only migration `mycar_staging_restrict_rls_auto_enable_execute_20261123` then revoked EXECUTE from `PUBLIC`, `anon`, and `authenticated`. A fresh Supabase Security Advisor scan confirmed the anonymous SECURITY DEFINER warning was removed. Remaining notices are the five intentionally authenticated MYCAR SECURITY DEFINER RPCs and Leaked Password Protection Disabled. STAGING DB revision 20, operations 20 and records 15 unchanged. Full details: [security phase report](STAGING_SECURITY_RECOVERY_PHASE_20261123.md).
+
+**Isolated recovery branch:** none currently exists; no potentially billable branch was created. A branch by itself would replicate migrations, not existing data; a true full database restore still requires a separate data-bearing backup and clone.
+
 ## 7. Final review disposition
 
 **STAGING RPC, application-backup merge/reverse and rollback safety tests: largely PASS.**  
