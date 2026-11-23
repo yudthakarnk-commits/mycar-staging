@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="./assets/sync-health.css?v=3.4.3">
+    <link rel="stylesheet" href="./assets/backup-preview.css?v=3.4.4">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MYCAR STAGING — Vehicle Tracker</title>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Track vehicle fuel, service, insurance, road tax, trips and expenses.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MYCAR">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./assets/auth.css?v=3.4.2">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <!-- Precompiled Tailwind CSS (offline-ready) -->
+    <link rel="stylesheet" href="./assets/app.css?v=3.4.2">
+    <link rel="stylesheet" href="./assets/car-photos.css?v=3.4.2">
+    <link rel="stylesheet" href="./assets/tng-import.css?v=3.4.2">
+    <!-- MYCAR v3.1: critical hero layout is inline to avoid a mixed-cache layout. -->
+    <style id="mycar-v31-critical-layout">
+      .mycar-hero-main{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(104px,43%)!important;align-items:center!important;gap:4px!important;min-height:112px!important}
+      .mycar-hero-amount{flex:initial!important;min-width:0;max-width:100%;align-self:center;position:relative;z-index:2}
+      .mycar-hero-amount h2{font-size:clamp(1.35rem,5.4vw,2.15rem)!important;letter-spacing:-.045em!important;line-height:1.15;white-space:nowrap}
+      .mycar-car-photo{display:flex!important;flex:initial!important;align-items:center;justify-content:center;justify-self:stretch;width:100%;height:113px!important;max-height:124px;margin:0!important;border:0!important;border-radius:0;background:none!important;padding:2px 0 5px;overflow:visible!important}
+      .mycar-car-photo img{display:block;width:100%;height:100%;object-fit:contain!important;object-position:center;background:transparent!important;filter:none!important}
+      @media(max-width:365px){.mycar-hero-main{grid-template-columns:minmax(0,1fr) minmax(99px,42%)!important;min-height:98px!important}.mycar-hero-amount h2{font-size:1.28rem!important}.mycar-car-photo{height:97px!important}}
+    </style>
+    <style id="mycar-v33-style">
+      /* v3.2: keep keyboard focus rings visible even inside a scrolling modal */
+      #vehicle-modal .overflow-y-auto{padding:7px 7px 16px!important;margin:-4px -4px 0!important;scroll-padding:10px}
+      #vehicle-modal input:focus-visible,#vehicle-modal select:focus-visible,#vehicle-modal button:focus-visible{outline:2px solid #18a06c!important;outline-offset:1px;box-shadow:0 0 0 3px rgba(16,185,129,.13)!important}
+      .mycar-trend-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:14px}
+      .mycar-trend-panels{display:grid;gap:16px}
+      .mycar-trend-panel{min-width:0}
+      .mycar-trend-label{font-size:12px;font-weight:700;color:#334155;margin-bottom:7px}
+      .mycar-trend-scroll{width:100%;overflow-x:auto;padding-bottom:4px}
+      .mycar-trend-chart{display:block;width:100%;min-width:310px;height:auto;max-height:188px}
+      .mycar-trend-chart text{font-family:Inter,system-ui,sans-serif}
+      .mycar-trend-empty{font-size:12px;color:#94a3b8;padding:18px 0}
+      .mycar-fuel-estimate{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:14px;padding:11px 12px;color:#065f46}
+      .mycar-fuel-estimate>div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;margin-bottom:5px}
+      .mycar-fuel-estimate strong{font-size:13px;white-space:nowrap}
+      .mycar-fuel-estimate small{display:block;font-size:10px;line-height:1.5;color:#047857;margin-top:8px}
+      .mycar-export-picker{border:1px solid #e2e8f0;border-radius:14px;padding:12px;display:grid;gap:8px}
+      .mycar-export-input{width:100%;background:#f1f5f9;border:1px solid #cbd5e1;padding:9px;border-radius:9px;color:#0f172a;font-size:13px;min-width:0}
+      .mycar-export-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+      .mycar-export-range[hidden]{display:none!important}
+      .mycar-export-range label{font-size:11px;color:#475569;min-width:0}
+      .mycar-export-picker small{font-size:10px;color:#64748b;line-height:1.5}
+      @media(min-width:700px){.mycar-trend-panels{grid-template-columns:1fr 1fr}}
+    </style>
+    <!-- Icons are bundled as accessible inline SVGs -->
+    
+    <!-- Local system typography -->
+    
+    <style>
+        body {
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background-color: #0f172a;
+            color: #0f172a;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .app-icon { width: 1em; height: 1em; display: inline-block; flex-shrink: 0; vertical-align: middle; }
+        .app-shell { height: 100dvh; min-height: 0; }
+        #main-content { min-height: 0; overscroll-behavior: contain; }
+        nav { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+        .app-shell { position: relative; }
+        @media (min-width: 640px) { .app-shell { height: min(880px, calc(100dvh - 32px)); } }
+        @media (max-width: 639px) { body { padding: 0; } }
+    </style>
+
+    <style id="mycar-v33-ui">
+      #fields-tax .grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+      #fields-tax .grid > div,#fields-tax input,#fields-tax select{min-width:0;max-width:100%;box-sizing:border-box}
+      #entry-form input:focus,#entry-form select:focus,#vehicle-form input:focus,#vehicle-form select:focus{outline:2px solid #34a77f!important;outline-offset:-2px!important;box-shadow:0 0 0 1px rgba(52,167,127,.12)!important}
+      #fields-tax #tax-expiry-group[hidden],#fields-tax #tax-time-group[hidden],#expense-add-another[hidden]{display:none!important}
+      .mycar-v33-chart{width:100%;overflow-x:auto;padding:4px 0 8px}
+      .mycar-v33-chart svg{display:block;width:100%;min-width:290px;max-height:215px}
+      .mycar-v33-legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 5px;font-size:11px;color:#475569}
+      .mycar-v33-key{display:inline-block;width:11px;height:11px;vertical-align:middle;border-radius:3px;margin-right:5px}
+      .mycar-v33-selected{font-size:12px;color:#0f172a;background:#eff8f5;border:1px solid #c7e9dc;border-radius:12px;padding:10px 12px;margin-top:8px;min-height:39px}
+      .mycar-v33-month{cursor:pointer;outline:none}
+      .mycar-v33-month:focus-visible .mycar-v33-hit{stroke:#064e3b;stroke-width:2}
+      @media(max-width:390px){#fields-tax .grid{grid-template-columns:1fr}}
+    </style>
+    <link rel="stylesheet" href="./assets/mobile-viewport-fix.css?v=3.4.2">
+
+    <style id="mycar-v341-header-style">
+      /* Compact header: logo + vehicle/plate on left, status + 3 actions on right. */
+      #mycar-app-shell > header.mycar-v341-header {
+        box-sizing:border-box;display:flex!important;align-items:center;justify-content:space-between;
+        gap:6px;width:100%;max-width:100%;min-width:0;
+        padding:10px max(10px,env(safe-area-inset-right)) 10px max(10px,env(safe-area-inset-left));
+        flex:0 0 auto;overflow:visible;grid-template-columns:none!important;
+      }
+      .mycar-v341-header .mycar-v341-identity {
+        display:flex;align-items:center;gap:9px;flex:1 1 0%;width:auto!important;min-width:0;max-width:100%;
+      }
+      .mycar-v341-header .mycar-v341-logo {
+        flex:0 0 51px;width:51px;height:51px;border-radius:14px;
+        background:linear-gradient(135deg,#142737,#25374c);border:1px solid rgba(52,211,153,.48);
+        box-shadow:0 2px 12px rgba(0,0,0,.16);display:flex;flex-direction:column;
+        align-items:center;justify-content:center;line-height:1.02;
+      }
+      .mycar-v341-header .mycar-v341-logo span {font-size:18px;font-weight:900;letter-spacing:-.04em;color:#34d399}
+      .mycar-v341-header .mycar-v341-logo small {font-size:14px;font-weight:650;letter-spacing:.015em;color:#f8fafc}
+      .mycar-v341-header .mycar-v341-vehicle {min-width:0;flex:1 1 auto;max-width:100%;overflow:hidden}
+      #mycar-app-shell .mycar-v341-header #header-vehicle-select {
+        display:block;box-sizing:border-box;width:100%!important;min-width:0!important;
+        max-width:100%!important;margin:0!important;padding:4px 15px 4px 5px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+        background:#1e293b;border:1px solid #475569;border-radius:8px;
+        color:#6ee7b7;font-weight:700;font-size:11px;line-height:1.25;
+      }
+      .mycar-v341-header #header-vehicle-plate {
+        font-size:10px;line-height:1.4;color:#94a3b8;margin:4px 0 0 2px;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      }
+      #mycar-app-shell > header.mycar-v341-header > .mycar-v341-actions {
+        display:flex;align-items:center;justify-content:flex-end;gap:3px;
+        flex:0 0 auto;min-width:0;max-width:none;
+      }
+      .mycar-v341-header .mycar-v341-actions > button {
+        flex:0 0 28px!important;width:28px!important;height:30px!important;
+        min-width:28px!important;max-width:28px!important;display:flex;align-items:center;justify-content:center;
+      }
+      .mycar-v341-header .mycar-v341-actions .mycar-sync-dot-button {
+        flex:0 0 18px!important;width:18px!important;min-width:18px!important;max-width:18px!important;
+      }
+      @media(max-width:359px){
+        #mycar-app-shell > header.mycar-v341-header{gap:4px;padding-left:max(7px,env(safe-area-inset-left));padding-right:max(7px,env(safe-area-inset-right))}
+        .mycar-v341-header .mycar-v341-identity{gap:6px}
+        .mycar-v341-header .mycar-v341-logo{flex-basis:46px;width:46px;height:46px}
+        .mycar-v341-header .mycar-v341-actions > button{flex-basis:26px!important;width:26px!important;min-width:26px!important;max-width:26px!important}
+        #mycar-app-shell > header.mycar-v341-header > .mycar-v341-actions{gap:2px}
+      }
+    </style>
+<style id="staging-warning-style">body::before{content:"MYCAR STAGING — TEST DATA ONLY";display:block;position:sticky;top:0;z-index:2147483647;text-align:center;background:#7c2d12;color:white;padding:6px;font:700 13px Arial,sans-serif;letter-spacing:.04em}</style>
+</head>
+<body data-environment="staging" class="bg-slate-950 flex justify-center items-center min-h-screen p-0 sm:p-4">
+
+    <section id="auth-screen" class="auth-screen" aria-label="MYCAR account authentication">
+      <div class="auth-card">
+        <div class="auth-logo" aria-hidden="true"><span>MY</span><small>CAR</small></div>
+        <p class="auth-eyebrow">MYCAR VEHICLE TRACKER</p>
+        <h1 id="auth-title">Sign in</h1>
+        <p id="auth-subtitle" class="auth-subtitle">Sign in to access your vehicle records.</p>
+        <div id="auth-mode-links" class="auth-tabs">
+          <button id="auth-tab-signin" type="button" class="active" data-mode="signin">Sign in</button>
+          <button id="auth-tab-signup" type="button" data-mode="signup">Sign up</button>
+        </div>
+        <div id="auth-alert" role="status" aria-live="polite" class="auth-alert" hidden></div>
+        <form id="auth-form" class="auth-form" autocomplete="on">
+          <div id="auth-email-group">
+            <label for="auth-email">Email address</label>
+            <input id="auth-email" type="email" placeholder="name@example.com" autocomplete="email" required>
+          </div>
+          <div id="auth-password-group">
+            <div class="auth-label-row"><label for="auth-password" id="auth-password-label">Password</label><button type="button" class="auth-simple-link" id="auth-forgot">Forgot?</button></div>
+            <div class="auth-password-wrap">
+              <input id="auth-password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="6" required>
+              <button type="button" id="auth-toggle-password" aria-label="Show password">Show</button>
+            </div>
+          </div>
+          <button id="auth-submit" type="submit" class="auth-primary">Sign in</button>
+        </form>
+        <form id="auth-setup-form" class="auth-form" hidden>
+          <div><label for="auth-project-url">Supabase Project URL</label><input id="auth-project-url" type="url" placeholder="https://YOUR-PROJECT.supabase.co" required></div>
+          <div><label for="auth-project-key">Publishable key (public)</label><input id="auth-project-key" type="text" placeholder="sb_publishable_..." required autocomplete="off" spellcheck="false"></div>
+          <p class="auth-notice">Use only a publishable key or legacy anon key. Never enter a service_role or secret key.</p>
+          <button type="submit" class="auth-primary">Save configuration</button>
+        </form>
+        <button id="auth-back" type="button" class="auth-secondary" hidden>Back to sign in</button>
+        <p class="auth-footer">Online verification is required to sign in. Vehicle records are synced securely to your Supabase cloud account. Offline edits upload on reconnect.</p>
+      </div>
+    </section>
+
+    <!-- Android Device Frame Wrapper -->
+    <div id="mycar-app-shell" hidden class="app-shell w-full sm:max-w-md bg-slate-50 sm:rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative border border-slate-800">
+
+        <!-- MYCAR v3.4.1: Compact responsive header -->
+        <header class="mycar-v341-header bg-slate-900 text-white shadow-md shrink-0">
+            <div class="mycar-v341-identity">
+                <div class="mycar-v341-logo" aria-label="MYCAR">
+                    <span>MY</span><small>CAR</small>
+                </div>
+                <div class="mycar-v341-vehicle">
+                    <select id="header-vehicle-select" onchange="switchActiveVehicle(this.value)" aria-label="Select vehicle">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <p id="header-vehicle-plate">Plate: -</p>
+                </div>
+            </div>
+            <div class="mycar-v341-actions">
+                <button type="button" id="mycar-sync-status" data-sync-state="working" onclick="MYCARCloud.syncNow()" title="Checking sync... Tap to sync" aria-label="Checking cloud sync" class="mycar-sync-dot-button" aria-live="off"><span class="mycar-sync-dot" aria-hidden="true"></span></button>
+                <button onclick="openLogoModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-emerald-400 transition" title="App Logo & Brand">
+                    <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M500.3 7.3C507.7 13.3 512 22.4 512 32l0 144c0 26.5-28.7 48-64 48s-64-21.5-64-48s28.7-48 64-48l0-57L352 90.2 352 208c0 26.5-28.7 48-64 48s-64-21.5-64-48s28.7-48 64-48l0-96c0-15.3 10.8-28.4 25.7-31.4l160-32c9.4-1.9 19.1 .6 26.6 6.6zM74.7 304l11.8-17.8c5.9-8.9 15.9-14.2 26.6-14.2l61.7 0c10.7 0 20.7 5.3 26.6 14.2L213.3 304l26.7 0c26.5 0 48 21.5 48 48l0 112c0 26.5-21.5 48-48 48L48 512c-26.5 0-48-21.5-48-48L0 352c0-26.5 21.5-48 48-48l26.7 0zM192 408a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM478.7 278.3L440.3 368l55.7 0c6.7 0 12.6 4.1 15 10.4s.6 13.3-4.4 17.7l-128 112c-5.6 4.9-13.9 5.3-19.9 .9s-8.2-12.4-5.3-19.2L391.7 400 336 400c-6.7 0-12.6-4.1-15-10.4s-.6-13.3 4.4-17.7l128-112c5.6-4.9 13.9-5.3 19.9-.9s8.2 12.4 5.3 19.2zm-339-59.2c-6.5 6.5-17 6.5-23 0L19.9 119.2c-28-29-26.5-76.9 5-103.9c27-23.5 68.4-19 93.4 6.5l10 10.5 9.5-10.5c25-25.5 65.9-30 93.9-6.5c31 27 32.5 74.9 4.5 103.9l-96.4 99.9z"></path></svg>
+                </button>
+                <button onclick="openVehicleModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-blue-400 transition" title="Manage Vehicles">
+                    <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M165.4 96l181.2 0c13.6 0 25.7 8.6 30.2 21.4L402.9 192l-293.8 0 26.1-74.6c4.5-12.8 16.6-21.4 30.2-21.4zm-90.6 .3L39.6 196.8C16.4 206.4 0 229.3 0 256l0 80c0 23.7 12.9 44.4 32 55.4L32 448c0 17.7 14.3 32 32 32l32 0c17.7 0 32-14.3 32-32l0-48 256 0 0 48c0 17.7 14.3 32 32 32l32 0c17.7 0 32-14.3 32-32l0-56.6c19.1-11.1 32-31.7 32-55.4l0-80c0-26.7-16.4-49.6-39.6-59.2L437.2 96.3C423.7 57.8 387.4 32 346.6 32L165.4 32c-40.8 0-77.1 25.8-90.6 64.3zM208 272l96 0c8.8 0 16 7.2 16 16l0 32c0 8.8-7.2 16-16 16l-96 0c-8.8 0-16-7.2-16-16l0-32c0-8.8 7.2-16 16-16zM48 280c0-13.3 10.7-24 24-24l32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0c-13.3 0-24-10.7-24-24zm360-24l32 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-32 0c-13.3 0-24-10.7-24-24s10.7-24 24-24z"></path></svg>
+                </button>
+                <button onclick="openSettingsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition" title="Settings & Backup">
+                    <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Scrollable Content Area -->
+        <main id="main-content" role="main" class="flex-1 overflow-y-auto p-4 pb-24 space-y-4">
+            
+            <!-- Reminders Banner (Road Tax & Tire Health) -->
+            <div id="reminders-banner" class="space-y-2">
+                <!-- Dynamically populated reminders -->
+            </div>
+
+            <!-- Filter Bar (Month / Year) -->
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <svg aria-hidden="true" focusable="false" class="app-icon text-emerald-600 text-sm ml-1" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M128 0c17.7 0 32 14.3 32 32l0 32 128 0 0-32c0-17.7 14.3-32 32-32s32 14.3 32 32l0 32 48 0c26.5 0 48 21.5 48 48l0 48L0 160l0-48C0 85.5 21.5 64 48 64l48 0 0-32c0-17.7 14.3-32 32-32zM0 192l448 0 0 272c0 26.5-21.5 48-48 48L48 512c-26.5 0-48-21.5-48-48L0 192zm64 80l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0c-8.8 0-16 7.2-16 16zm128 0l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0c-8.8 0-16 7.2-16 16zm144-16c-8.8 0-16 7.2-16 16l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0zM64 400l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0c-8.8 0-16 7.2-16 16zm144-16c-8.8 0-16 7.2-16 16l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0zm112 16l0 32c0 8.8 7.2 16 16 16l32 0c8.8 0 16-7.2 16-16l0-32c0-8.8-7.2-16-16-16l-32 0c-8.8 0-16 7.2-16 16z"></path></svg>
+                    <span class="text-xs font-bold text-slate-700">Filter Period</span>
+                </div>
+                <div class="flex space-x-2">
+                    <select id="filter-month" onchange="changeFilter()" class="bg-slate-100 text-slate-800 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="all">All Months</option>
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                    <select id="filter-year" onchange="changeFilter()" class="bg-slate-100 text-slate-800 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- TAB 1: Dashboard / Summary View -->
+            <div id="tab-dashboard" class="tab-view space-y-4">
+                
+                <!-- Summary Card Main -->
+                <div class="bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full pointer-events-none"></div>
+                    <p class="text-xs text-emerald-100 uppercase tracking-wider font-medium">Total Period Expenses (<span id="active-veh-label">Car</span>)</p>
+                    <div class="mycar-hero-main">
+                        <div class="mycar-hero-amount"><h2 class="text-3xl font-bold mt-1 tracking-tight" id="sum-total-cost">RM0.00</h2></div>
+                        <button type="button" id="mycar-car-photo-button" class="mycar-car-photo" onclick="MYCARVehiclePhotos.openPicker()" aria-label="Choose model reference photo" title="Choose vehicle photo">
+                            <img id="mycar-car-photo-img" alt="Reference photo of this vehicle model" loading="lazy" hidden>
+                            <span id="mycar-car-photo-placeholder" class="mycar-car-photo-placeholder" aria-hidden="true">
+                                <svg viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M31 60L45 34C49 26 55 25 65 25H135C146 25 152 31 157 40L171 60" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/><path d="M26 62H174C182 62 185 70 185 76V83H15V76C15 70 18 62 26 62Z" stroke="currentColor" stroke-width="4.5"/><path d="M32 65L61 71M168 65L139 71" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M43 84V92H65V84M135 84V92H157V84" stroke="currentColor" stroke-width="4"/></svg>
+                            </span>
+                            <span class="mycar-car-photo-edit">Change photo</span>
+                        </button>
+                    </div>
+                    <div class="mycar-photo-attribution" id="mycar-photo-attribution" hidden></div>
+                    
+                    <div class="mt-4 pt-4 border-t border-emerald-500/40 grid grid-cols-2 gap-3">
+                        <div>
+                            <p class="text-[11px] text-emerald-200">Latest recorded odometer</p>
+                            <p class="text-lg font-bold" id="sum-total-distance">—</p>
+                            <p class="text-[10px] text-emerald-100/90" id="sum-trip-distance">Logged trips: 0 km</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] text-emerald-200">Fuel consumption (est.)</p>
+                            <p class="text-lg font-bold" id="sum-avg-efficiency">—</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Breakdown Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div onclick="switchTab('fuel')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition group">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                                <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M32 64C32 28.7 60.7 0 96 0L256 0c35.3 0 64 28.7 64 64l0 192 8 0c48.6 0 88 39.4 88 88l0 32c0 13.3 10.7 24 24 24s24-10.7 24-24l0-154c-27.6-7.1-48-32.2-48-62l0-64L384 64c-8.8-8.8-8.8-23.2 0-32s23.2-8.8 32 0l77.3 77.3c12 12 18.7 28.3 18.7 45.3l0 13.5 0 24 0 32 0 152c0 39.8-32.2 72-72 72s-72-32.2-72-72l0-32c0-22.1-17.9-40-40-40l-8 0 0 144c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 512c-17.7 0-32-14.3-32-32s14.3-32 32-32L32 64zM96 80l0 96c0 8.8 7.2 16 16 16l128 0c8.8 0 16-7.2 16-16l0-96c0-8.8-7.2-16-16-16L112 64c-8.8 0-16 7.2-16 16z"></path></svg>
+                            </div>
+                            <span class="text-[10px] text-slate-400 group-hover:text-emerald-600 font-semibold">View All</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Fuel Expenses</p>
+                        <h4 class="text-base font-bold text-slate-900 mt-0.5" id="card-fuel-cost">RM0.00</h4>
+                        <p class="text-[10px] text-slate-400 mt-1" id="card-fuel-count">0 logs</p>
+                    </div>
+
+                    <div onclick="switchTab('maintenance')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition group">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M352 320c88.4 0 160-71.6 160-160c0-15.3-2.2-30.1-6.2-44.2c-3.1-10.8-16.4-13.2-24.3-5.3l-76.8 76.8c-3 3-7.1 4.7-11.3 4.7L336 192c-8.8 0-16-7.2-16-16l0-57.4c0-4.2 1.7-8.3 4.7-11.3l76.8-76.8c7.9-7.9 5.4-21.2-5.3-24.3C382.1 2.2 367.3 0 352 0C263.6 0 192 71.6 192 160c0 19.1 3.4 37.5 9.5 54.5L19.9 396.1C7.2 408.8 0 426.1 0 444.1C0 481.6 30.4 512 67.9 512c18 0 35.3-7.2 48-19.9L297.5 310.5c17 6.2 35.4 9.5 54.5 9.5zM80 408a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"></path></svg>
+                            </div>
+                            <span class="text-[10px] text-slate-400 group-hover:text-emerald-600 font-semibold">View All</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Maintenance</p>
+                        <h4 class="text-base font-bold text-slate-900 mt-0.5" id="card-maint-cost">RM0.00</h4>
+                        <p class="text-[10px] text-slate-400 mt-1" id="card-maint-count">0 logs</p>
+                    </div>
+
+                    <div onclick="switchTab('tax')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition group">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
+                                <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M64 0C28.7 0 0 28.7 0 64L0 448c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-288-128 0c-17.7 0-32-14.3-32-32L224 0 64 0zM256 0l0 128 128 0L256 0zM64 80c0-8.8 7.2-16 16-16l64 0c8.8 0 16 7.2 16 16s-7.2 16-16 16L80 96c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16l64 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-64 0c-8.8 0-16-7.2-16-16zm128 72c8.8 0 16 7.2 16 16l0 17.3c8.5 1.2 16.7 3.1 24.1 5.1c8.5 2.3 13.6 11 11.3 19.6s-11 13.6-19.6 11.3c-11.1-3-22-5.2-32.1-5.3c-8.4-.1-17.4 1.8-23.6 5.5c-5.7 3.4-8.1 7.3-8.1 12.8c0 3.7 1.3 6.5 7.3 10.1c6.9 4.1 16.6 7.1 29.2 10.9l.5 .1s0 0 0 0s0 0 0 0c11.3 3.4 25.3 7.6 36.3 14.6c12.1 7.6 22.4 19.7 22.7 38.2c.3 19.3-9.6 33.3-22.9 41.6c-7.7 4.8-16.4 7.6-25.1 9.1l0 17.1c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-17.8c-11.2-2.1-21.7-5.7-30.9-8.9c0 0 0 0 0 0c-2.1-.7-4.2-1.4-6.2-2.1c-8.4-2.8-12.9-11.9-10.1-20.2s11.9-12.9 20.2-10.1c2.5 .8 4.8 1.6 7.1 2.4c0 0 0 0 0 0s0 0 0 0s0 0 0 0c13.6 4.6 24.6 8.4 36.3 8.7c9.1 .3 17.9-1.7 23.7-5.3c5.1-3.2 7.9-7.3 7.8-14c-.1-4.6-1.8-7.8-7.7-11.6c-6.8-4.3-16.5-7.4-29-11.2l-1.6-.5s0 0 0 0c-11-3.3-24.3-7.3-34.8-13.7c-12-7.2-22.6-18.9-22.7-37.3c-.1-19.4 10.8-32.8 23.8-40.5c7.5-4.4 15.8-7.2 24.1-8.7l0-17.3c0-8.8 7.2-16 16-16z"></path></svg>
+                            </div>
+                            <span class="text-[10px] text-slate-400 group-hover:text-emerald-600 font-semibold">View All</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Expenses</p>
+                        <h4 class="text-base font-bold text-slate-900 mt-0.5" id="card-tax-cost">RM0.00</h4>
+                        <p class="text-[10px] text-slate-400 mt-1" id="card-tax-count">0 logs</p>
+                    </div>
+
+                    <div onclick="switchTab('trips')" class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition group">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                                <svg aria-hidden="true" focusable="false" class="app-icon text-xs" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M14 2.2C22.5-1.7 32.5-.3 39.6 5.8L80 40.4 120.4 5.8c9-7.7 22.3-7.7 31.2 0L192 40.4 232.4 5.8c9-7.7 22.3-7.7 31.2 0L304 40.4 344.4 5.8c7.1-6.1 17.1-7.5 25.6-3.6s14 12.4 14 21.8l0 464c0 9.4-5.5 17.9-14 21.8s-18.5 2.5-25.6-3.6L304 471.6l-40.4 34.6c-9 7.7-22.3 7.7-31.2 0L192 471.6l-40.4 34.6c-9 7.7-22.3 7.7-31.2 0L80 471.6 39.6 506.2c-7.1 6.1-17.1 7.5-25.6 3.6S0 497.4 0 488L0 24C0 14.6 5.5 6.1 14 2.2zM96 144c-8.8 0-16 7.2-16 16s7.2 16 16 16l192 0c8.8 0 16-7.2 16-16s-7.2-16-16-16L96 144zM80 352c0 8.8 7.2 16 16 16l192 0c8.8 0 16-7.2 16-16s-7.2-16-16-16L96 336c-8.8 0-16 7.2-16 16zM96 240c-8.8 0-16 7.2-16 16s7.2 16 16 16l192 0c8.8 0 16-7.2 16-16s-7.2-16-16-16L96 240z"></path></svg>
+                            </div>
+                            <span class="text-[10px] text-slate-400 group-hover:text-emerald-600 font-semibold">View All</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium">Trip Distance</p>
+                        <h4 class="text-base font-bold text-slate-900 mt-0.5" id="card-other-cost">0 km</h4>
+                        <p class="text-[10px] text-slate-400 mt-1" id="card-other-count">0 trips</p>
+                    </div>
+                </div>
+
+                <!-- Monthly trends: rendered from actual records and selected period -->
+                <section class="mycar-trends bg-white p-4 rounded-3xl shadow-sm border border-slate-200" aria-label="Monthly distance and expenses">
+                  <div class="mycar-trend-heading"><h3 class="font-bold text-slate-800 text-sm">Monthly trends</h3><span class="text-[11px] text-slate-500">Tap a month to view values</span></div>
+                  <div id="mycar-monthly-trends" class="mycar-trend-panels" aria-live="polite"></div>
+                </section>
+
+                <!-- Recent Activities Section -->
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-800 text-sm">Recent Activities</h3>
+                        <button onclick="switchTab('fuel')" class="text-xs font-bold text-emerald-600 hover:underline">View All Logs</button>
+                    </div>
+                    <div id="recent-activities-list" class="space-y-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Fuel Logs -->
+            <div id="tab-fuel" class="tab-view space-y-3 hidden">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Fuel Fill-up Records (MYR)</h3>
+                    <button onclick="openModal('fuel')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center space-x-1.5">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-[10px]" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"></path></svg>
+                        <span>Add Fuel</span>
+                    </button>
+                </div>
+                <div id="fuel-list" class="space-y-2.5"></div>
+            </div>
+
+            <!-- TAB 3: Maintenance -->
+            <div id="tab-maintenance" class="tab-view space-y-3 hidden">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Maintenance & Tire Services</h3>
+                    <button onclick="openModal('maintenance')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center space-x-1.5">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-[10px]" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"></path></svg>
+                        <span>Add Service</span>
+                    </button>
+                </div>
+                <div id="maintenance-list" class="space-y-2.5"></div>
+            </div>
+
+            <!-- TAB 4: Expenses: existing tax collection preserved for compatibility -->
+            <div id="tab-tax" class="tab-view space-y-3 hidden">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Expenses</h3>
+                    <button onclick="openModal('tax')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center space-x-1.5">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-[10px]" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"></path></svg>
+                        <span>Add Expense</span>
+                    </button>
+                </div>
+                <button type="button" onclick="MYCARTNG.open()" class="w-full flex items-center justify-center gap-2 bg-white border border-emerald-300 text-emerald-800 rounded-xl py-2.5 text-xs font-bold shadow-sm">
+                    <span aria-hidden="true">📄</span> Import Touch 'n Go PDF (Toll / Parking)
+                </button>
+                <section aria-label="Other expenses" class="rounded-2xl border border-slate-200 bg-white p-3 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Other Expenses</h3>
+                    <button onclick="openModal('other')" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-slate-700 transition flex items-center space-x-1.5">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-[10px]" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"></path></svg>
+                        <span>Add Other</span>
+                    </button>
+                </div>
+                <div id="other-list" class="space-y-2.5"></div>
+                </section>
+                <h4 class="text-xs font-bold text-slate-600">Toll, parking, tax &amp; insurance</h4>
+                <div id="tax-list" class="space-y-2.5"></div>
+            </div>
+
+            <!-- TAB 5: Trip logs only (Other Expenses now in Expenses tab) -->
+            <div id="tab-trips" class="tab-view space-y-3 hidden">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm">Trip Logs & Mileage</h3>
+                    <button onclick="openModal('trip')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center space-x-1.5">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-[10px]" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 144L48 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l144 0 0 144c0 17.7 14.3 32 32 32s32-14.3 32-32l0-144 144 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-144 0 0-144z"></path></svg>
+                        <span>Add Trip</span>
+                    </button>
+                </div>
+                <div id="trip-list" class="space-y-2.5"></div>
+
+
+            </div>
+
+        </main>
+
+        <!-- Bottom App Navigation Bar -->
+        <nav class="bg-white border-t border-slate-200 px-2 py-2 flex items-center justify-around z-20 shrink-0 shadow-lg">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center space-y-1 text-emerald-600 transition flex-1 py-1">
+                <svg aria-hidden="true" focusable="false" class="app-icon text-base" viewBox="0 0 576 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M304 240l0-223.4c0-9 7-16.6 16-16.6C443.7 0 544 100.3 544 224c0 9-7.6 16-16.6 16L304 240zM32 272C32 150.7 122.1 50.3 239 34.3c9.2-1.3 17 6.1 17 15.4L256 288 412.5 444.5c6.7 6.7 6.2 17.7-1.5 23.1C371.8 495.6 323.8 512 272 512C139.5 512 32 404.6 32 272zm526.4 16c9.3 0 16.6 7.8 15.4 17c-7.7 55.9-34.6 105.6-73.9 142.3c-6 5.6-15.4 5.2-21.2-.7L320 288l238.4 0z"></path></svg>
+                <span class="text-[10px] font-bold">Summary</span>
+            </button>
+            <button onclick="switchTab('fuel')" id="nav-fuel" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 transition flex-1 py-1">
+                <svg aria-hidden="true" focusable="false" class="app-icon text-base" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M32 64C32 28.7 60.7 0 96 0L256 0c35.3 0 64 28.7 64 64l0 192 8 0c48.6 0 88 39.4 88 88l0 32c0 13.3 10.7 24 24 24s24-10.7 24-24l0-154c-27.6-7.1-48-32.2-48-62l0-64L384 64c-8.8-8.8-8.8-23.2 0-32s23.2-8.8 32 0l77.3 77.3c12 12 18.7 28.3 18.7 45.3l0 13.5 0 24 0 32 0 152c0 39.8-32.2 72-72 72s-72-32.2-72-72l0-32c0-22.1-17.9-40-40-40l-8 0 0 144c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 512c-17.7 0-32-14.3-32-32s14.3-32 32-32L32 64zM96 80l0 96c0 8.8 7.2 16 16 16l128 0c8.8 0 16-7.2 16-16l0-96c0-8.8-7.2-16-16-16L112 64c-8.8 0-16 7.2-16 16z"></path></svg>
+                <span class="text-[10px] font-semibold">Fuel</span>
+            </button>
+            <button onclick="switchTab('maintenance')" id="nav-maintenance" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 transition flex-1 py-1">
+                <svg aria-hidden="true" focusable="false" class="app-icon text-base" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M352 320c88.4 0 160-71.6 160-160c0-15.3-2.2-30.1-6.2-44.2c-3.1-10.8-16.4-13.2-24.3-5.3l-76.8 76.8c-3 3-7.1 4.7-11.3 4.7L336 192c-8.8 0-16-7.2-16-16l0-57.4c0-4.2 1.7-8.3 4.7-11.3l76.8-76.8c7.9-7.9 5.4-21.2-5.3-24.3C382.1 2.2 367.3 0 352 0C263.6 0 192 71.6 192 160c0 19.1 3.4 37.5 9.5 54.5L19.9 396.1C7.2 408.8 0 426.1 0 444.1C0 481.6 30.4 512 67.9 512c18 0 35.3-7.2 48-19.9L297.5 310.5c17 6.2 35.4 9.5 54.5 9.5zM80 408a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"></path></svg>
+                <span class="text-[10px] font-semibold">Service</span>
+            </button>
+            <button onclick="switchTab('tax')" id="nav-tax" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 transition flex-1 py-1">
+                <svg aria-hidden="true" focusable="false" class="app-icon text-base" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M64 0C28.7 0 0 28.7 0 64L0 448c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-288-128 0c-17.7 0-32-14.3-32-32L224 0 64 0zM256 0l0 128 128 0L256 0zM64 80c0-8.8 7.2-16 16-16l64 0c8.8 0 16 7.2 16 16s-7.2 16-16 16L80 96c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16l64 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-64 0c-8.8 0-16-7.2-16-16zm128 72c8.8 0 16 7.2 16 16l0 17.3c8.5 1.2 16.7 3.1 24.1 5.1c8.5 2.3 13.6 11 11.3 19.6s-11 13.6-19.6 11.3c-11.1-3-22-5.2-32.1-5.3c-8.4-.1-17.4 1.8-23.6 5.5c-5.7 3.4-8.1 7.3-8.1 12.8c0 3.7 1.3 6.5 7.3 10.1c6.9 4.1 16.6 7.1 29.2 10.9l.5 .1s0 0 0 0s0 0 0 0c11.3 3.4 25.3 7.6 36.3 14.6c12.1 7.6 22.4 19.7 22.7 38.2c.3 19.3-9.6 33.3-22.9 41.6c-7.7 4.8-16.4 7.6-25.1 9.1l0 17.1c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-17.8c-11.2-2.1-21.7-5.7-30.9-8.9c0 0 0 0 0 0c-2.1-.7-4.2-1.4-6.2-2.1c-8.4-2.8-12.9-11.9-10.1-20.2s11.9-12.9 20.2-10.1c2.5 .8 4.8 1.6 7.1 2.4c0 0 0 0 0 0s0 0 0 0s0 0 0 0c13.6 4.6 24.6 8.4 36.3 8.7c9.1 .3 17.9-1.7 23.7-5.3c5.1-3.2 7.9-7.3 7.8-14c-.1-4.6-1.8-7.8-7.7-11.6c-6.8-4.3-16.5-7.4-29-11.2l-1.6-.5s0 0 0 0c-11-3.3-24.3-7.3-34.8-13.7c-12-7.2-22.6-18.9-22.7-37.3c-.1-19.4 10.8-32.8 23.8-40.5c7.5-4.4 15.8-7.2 24.1-8.7l0-17.3c0-8.8 7.2-16 16-16z"></path></svg>
+                <span class="text-[10px] font-semibold">Expenses</span>
+            </button>
+            <button onclick="switchTab('trips')" id="nav-trips" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 transition flex-1 py-1">
+                <svg aria-hidden="true" focusable="false" class="app-icon text-base" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M512 96c0 50.2-59.1 125.1-84.6 155c-3.8 4.4-9.4 6.1-14.5 5L320 256c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c53 0 96 43 96 96s-43 96-96 96l-276.4 0c8.7-9.9 19.3-22.6 30-36.8c6.3-8.4 12.8-17.6 19-27.2L416 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0c-53 0-96-43-96-96s43-96 96-96l39.8 0c-21-31.5-39.8-67.7-39.8-96c0-53 43-96 96-96s96 43 96 96zM117.1 489.1c-3.8 4.3-7.2 8.1-10.1 11.3l-1.8 2-.2-.2c-6 4.6-14.6 4-20-1.8C59.8 473 0 402.5 0 352c0-53 43-96 96-96s96 43 96 96c0 30-21.1 67-43.5 97.9c-10.7 14.7-21.7 28-30.8 38.5l-.6 .7zM128 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM416 128a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"></path></svg>
+                <span class="text-[10px] font-semibold">Trips</span>
+            </button>
+        </nav>
+
+        <!-- Dynamic Entry Add / Edit Modal -->
+        <div id="app-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between shrink-0">
+                    <h3 id="modal-title" class="font-bold text-slate-800 text-base">Add Record</h3>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-lg" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto flex-1 pr-1">
+                    <form id="entry-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                        <input type="hidden" id="form-type" value="">
+                        <input type="hidden" id="form-id" value="">
+
+                        <!-- Common Date Field -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-600">Date</label>
+                            <input type="date" id="field-date" required class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+
+                        <!-- FUEL FIELDS -->
+                        <div id="fields-fuel" class="form-section space-y-4 hidden">
+                            <!-- Local receipt preview (manual transcription) -->
+                            <div class="bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl p-3 text-center">
+                                <input type="file" id="receipt-file-input" accept="image/*" onchange="previewReceipt(event)" class="hidden">
+                                <label for="receipt-file-input" class="cursor-pointer flex flex-col items-center justify-center space-y-1">
+                                    <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-md">
+                                        <svg aria-hidden="true" focusable="false" class="app-icon text-sm" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M149.1 64.8L138.7 96 64 96C28.7 96 0 124.7 0 160L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-256c0-35.3-28.7-64-64-64l-74.7 0L362.9 64.8C356.4 45.2 338.1 32 317.4 32L194.6 32c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"></path></svg>
+                                    </div>
+                                    <span class="text-xs font-bold text-emerald-800">View Fuel Receipt / Slip</span>
+                                    <span class="text-[10px] text-emerald-600">Select a photo to check it and enter the values below</span>
+                                </label>
+                                <p id="receipt-status" class="text-[10px] text-emerald-700 mt-2 hidden"></p>
+                                <img id="receipt-preview" alt="Selected receipt" class="hidden mx-auto mt-2 max-h-48 rounded-xl object-contain" />
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Odometer (km)</label>
+                                    <input type="number" step="0.1" id="fuel-odometer" placeholder="e.g. 55200" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Quantity (Liters)</label>
+                                    <input type="number" step="0.01" id="fuel-liters" placeholder="e.g. 35.5" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Total Cost (MYR — original)</label>
+                                    <input type="number" step="0.01" id="fuel-cost" placeholder="e.g. 72.50" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Fuel Type (Auto-Remembered)</label>
+                                    <select id="fuel-type-name" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="RON95">RON95</option>
+                                        <option value="RON97">RON97</option>
+                                        <option value="Diesel">Diesel (Euro 5)</option>
+                                        <option value="EV Charging">EV Charging</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mycar-fuel-estimate" id="fuel-estimate-panel" aria-live="polite">
+                              <div><span>Distance since previous fill</span><strong id="fuel-est-distance">—</strong></div>
+                              <div><span>Estimated consumption</span><strong id="fuel-est-efficiency">—</strong></div>
+                              <small>Odometer difference ÷ litres added now. An estimate unless refills are comparable.</small>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Notes</label>
+                                <input type="text" id="fuel-station" placeholder="Additional remarks (optional)" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        <!-- MAINTENANCE FIELDS -->
+                        <div id="fields-maintenance" class="form-section space-y-4 hidden">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Odometer (km)</label>
+                                    <input type="number" step="0.1" id="maint-odometer" placeholder="e.g. 55000" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Total Cost (MYR — original)</label>
+                                    <input type="number" step="0.01" id="maint-cost" placeholder="e.g. 180.00" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Service Type</label>
+                                <select id="maint-type" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <option value="Tire Replacement">Tire Replacement (Reset Tire Mileage)</option>
+                                    <option value="Oil Change">Oil Change & Filter</option>
+                                    <option value="Brake Service">Brake Service / Pads</option>
+                                    <option value="Scheduled Maintenance">Scheduled Maintenance</option>
+                                    <option value="Battery Replacement">Battery Replacement</option>
+                                    <option value="General Repair / Other">General Repair / Other</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Workshop / Service Center</label>
+                                <input type="text" id="maint-garage" placeholder="e.g. TyrePlus, Petronas AutoExpert" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Detailed Notes</label>
+                                <textarea id="maint-notes" rows="2" placeholder="Parts replaced, tire brand, warranty info..." class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- TAX & INSURANCE FIELDS -->
+                        <div id="fields-tax" class="form-section space-y-4 hidden">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Expense Category</label>
+                                    <select id="tax-type" onchange="updateExpenseFields()" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="Toll Pass / RFID / SmartTAG">Toll / RFID / SmartTAG</option>
+                                        <option value="Toll Fee">Toll Fee (imported records)</option>
+                                        <option value="Parking Fee">Parking</option>
+                                        <option value="Annual Vehicle Tax (Road Tax)">Road Tax</option>
+                                        <option value="Comprehensive Insurance">Comprehensive Insurance</option>
+                                        <option value="Third-Party Insurance">Third-Party Insurance</option>
+                                        <option value="Other Vehicle Expense">Other vehicle expense</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Total Cost (MYR — original)</label>
+                                    <input type="number" step="0.01" id="tax-cost" placeholder="e.g. 90.00" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="space-y-1" id="tax-expiry-group">
+                                <label class="text-xs font-semibold text-slate-600">Expiry Date (reminders for tax / insurance)</label>
+                                <input type="date" id="tax-expiry" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label id="tax-notes-label" class="text-xs font-semibold text-slate-600">Toll plaza / route</label>
+                                <input type="text" id="tax-notes" placeholder="e.g. Grand Sepadu – Kapar Barrier" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="space-y-1" id="tax-time-group">
+                                <label class="text-xs font-semibold text-slate-600" for="tax-time">Passage / payment time (optional)</label>
+                                <input type="time" id="tax-time" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm">
+                                <p class="text-[11px] text-slate-500">Record each toll separately, even when you pass several gates in one day.</p>
+                            </div>
+                            <button type="button" id="expense-add-another" onclick="saveAndAddAnotherExpense()" class="w-full rounded-xl border border-emerald-500 text-emerald-800 bg-emerald-50 py-2.5 font-semibold text-xs">Save & add another toll / parking</button>
+                        </div>
+
+                        <!-- TRIP FIELDS -->
+                        <div id="fields-trip" class="form-section space-y-4 hidden">
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Trip Purpose / Route</label>
+                                <input type="text" id="trip-purpose" placeholder="e.g. Commute to Office, Balik Kampung" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Start Odometer (km)</label>
+                                    <input type="number" step="0.1" id="trip-start-odo" placeholder="e.g. 55100" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <p id="trip-start-hint" class="text-[10px] text-emerald-700 mt-1">Automatically uses previous trip end odometer.</p>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">End Odometer (km)</label>
+                                    <input type="number" step="0.1" id="trip-end-odo" placeholder="e.g. 55135" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Notes</label>
+                                <input type="text" id="trip-notes" placeholder="Additional remarks..." class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        <!-- OTHER EXPENSE FIELDS -->
+                        <div id="fields-other" class="form-section space-y-4 hidden">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Expense Title</label>
+                                    <input type="text" id="other-desc" placeholder="e.g. Car Wash, Parking Fee" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-slate-600">Total Cost (MYR — original)</label>
+                                    <input type="number" step="0.01" id="other-cost" placeholder="e.g. 15.00" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-slate-600">Notes</label>
+                                <input type="text" id="other-notes" placeholder="Remarks..." class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center space-x-2">
+                                <svg aria-hidden="true" focusable="false" class="app-icon " viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-242.7c0-17-6.7-33.3-18.7-45.3L352 50.7C340 38.7 323.7 32 306.7 32L64 32zm0 96c0-17.7 14.3-32 32-32l192 0c17.7 0 32 14.3 32 32l0 64c0 17.7-14.3 32-32 32L96 224c-17.7 0-32-14.3-32-32l0-64zM224 288a64 64 0 1 1 0 128 64 64 0 1 1 0-128z"></path></svg>
+                                <span>Save Record</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicle Fleet Management Modal -->
+        <div id="vehicle-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between shrink-0">
+                    <h3 class="font-bold text-slate-800 text-base">Vehicle Fleet & Fuel Memory</h3>
+                    <button onclick="closeVehicleModal()" class="text-slate-400 hover:text-slate-600">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-lg" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>
+                    </button>
+                </div>
+                
+                <div class="space-y-3 overflow-y-auto flex-1 pr-1">
+                    <div id="vehicle-list-container" class="space-y-2">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-200">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2" id="veh-form-title">Add New Vehicle</h4>
+                        <form id="vehicle-form" onsubmit="handleVehicleSubmit(event)" class="space-y-3">
+                            <input type="hidden" id="veh-id" value="">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Vehicle Name</label>
+                                    <input type="text" id="veh-name" required placeholder="e.g. Perodua Myvi" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Plate Number</label>
+                                    <input type="text" id="veh-plate" required placeholder="e.g. VAA 1234" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Default Fuel Type</label>
+                                    <select id="veh-fuel" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                        <option value="RON95">RON95</option>
+                                        <option value="RON97">RON97</option>
+                                        <option value="Diesel">Diesel</option>
+                                        <option value="EV Charging">EV Charging</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Current Odometer (km)</label>
+                                    <input type="number" id="veh-odo" placeholder="e.g. 55200" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Tire Lifespan Limit (km)</label>
+                                    <input type="number" id="veh-tire-limit" value="40000" placeholder="40000" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-[11px] font-semibold text-slate-600">Last Tire Change Odo</label>
+                                    <input type="number" id="veh-last-tire-odo" placeholder="e.g. 15000" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition">Save Vehicle</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Logo Brand Preview Modal -->
+        <div id="logo-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-base">MYCAR Brand Identity</h3>
+                    <button onclick="closeLogoModal()" class="text-slate-400 hover:text-slate-600">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-lg" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>
+                    </button>
+                </div>
+                <div class="py-4 flex flex-col items-center justify-center space-y-3">
+                    <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 shadow-xl flex flex-col items-center justify-center p-3 border-2 border-emerald-500/40 relative">
+                        <div class="flex flex-col items-center justify-center leading-tight mb-1">
+                            <span class="font-black text-2xl tracking-tight text-emerald-400">MY</span>
+                            <span class="font-normal text-xl tracking-tight text-white">CAR</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-600 font-medium">Google-inspired modern minimalist icon featuring distinct bold green <span class="font-bold text-emerald-600">MY</span> and clean white <span class="font-bold text-slate-800">CAR</span> typography.</p>
+                </div>
+                <button onclick="closeLogoModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Got It</button>
+            </div>
+        </div>
+
+        <!-- Settings & Backup Modal -->
+        <div id="settings-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4" style="max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-base">Settings & Data Backup</h3>
+                    <button type="button" aria-label="Close settings" onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600">
+                        <svg aria-hidden="true" focusable="false" class="app-icon text-lg" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"></path></svg>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0"><p class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Signed-in Account</p><p id="account-email" class="text-xs font-semibold text-slate-900 truncate">—</p></div>
+                            <button type="button" onclick="AuthManager.signOut()" class="rounded-xl bg-white border border-emerald-200 text-slate-800 px-3 py-2 text-xs font-bold">Log out</button>
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                           <button type="button" onclick="AuthManager.showPasswordUpdate()" class="text-[11px] font-bold text-emerald-800 underline">Change password</button>
+                           <button type="button" id="import-legacy-btn" onclick="importLegacyMYCARData()" class="hidden text-[11px] font-bold text-emerald-800 underline">Import older MYCAR records on this device</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-100 p-3"><span id="mycar-sync-detail" class="text-[11px] text-slate-600">Not yet synced</span><button type="button" onclick="MYCARCloud.syncNow()" class="text-xs font-bold text-emerald-700">Sync now</button></div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-600">Display Currency (base MYR)</label>
+                        <select id="mycar-currency-select" aria-label="Display currency" onchange="MYCARCurrency.choose(this.value)" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold">
+                          <option value="MYR">MYR — Malaysian Ringgit (RM) · Default</option>
+                          <option value="THB">THB — Thai Baht (฿)</option>
+                          <option value="USD">USD — US Dollar ($)</option>
+                        </select>
+                        <p id="mycar-currency-note" role="status" aria-live="polite" class="text-[10px] leading-5 text-slate-500 mt-1">Original MYR values. No conversion. Stored records remain MYR.</p>
+                        <p class="text-[10px] leading-5 text-slate-500 mt-1">Reference rates provided by <a class="underline" target="_blank" rel="noopener noreferrer" href="https://www.exchangerate-api.com">ExchangeRate-API</a>. Amounts entered and exported remain MYR; only on-screen values are converted.</p>
+                    </div>
+                    <div class="pt-2 space-y-2">
+                        <div class="text-center text-[11px] text-slate-500">MYCAR v3.3.1 · PWA auto-update enabled</div>
+                        <button type="button" onclick="checkMYCARUpdates()" class="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold py-2.5 rounded-xl text-xs transition">Check for app updates</button>
+                        <button id="install-app-btn" onclick="installMYCAR()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Install MYCAR App</button>
+                        <p id="install-hint" class="text-[11px] text-slate-500">On Android: browser menu → Install app. On iPhone: Share → Add to Home Screen.</p>
+                        <div class="text-[11px] text-amber-800 bg-amber-50 rounded-xl p-2.5">Records automatically sync to your private Supabase account every 15 seconds and after changes. Offline edits are queued locally. Changes made simultaneously to the same record use last-write-wins. Keep a JSON backup regularly.</div>
+                        <div class="mycar-export-picker">
+                          <label class="text-xs font-bold text-slate-700" for="mycar-export-scope">Export period</label>
+                          <select id="mycar-export-scope" class="mycar-export-input" onchange="toggleMYCARExportPeriod()">
+                            <option value="all">All records</option><option value="range">Month range</option>
+                          </select>
+                          <div class="mycar-export-range" id="mycar-export-range" hidden>
+                            <label>From month <input type="month" id="mycar-export-start" class="mycar-export-input"></label>
+                            <label>To month <input type="month" id="mycar-export-end" class="mycar-export-input"></label>
+                          </div>
+                          <small>JSON month-range exports are reports, not full account backups. Use All for a restore-capable backup.</small>
+                        </div>
+                        <button onclick="exportJSON()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <svg aria-hidden="true" focusable="false" class="app-icon " viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 242.7-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7 288 32zM64 352c-35.3 0-64 28.7-64 64l0 32c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-32c0-35.3-28.7-64-64-64l-101.5 0-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352 64 352zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"></path></svg>
+                            <span>Export Backup (JSON)</span>
+                        </button>
+                        <button onclick="exportCSV()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <svg aria-hidden="true" focusable="false" class="app-icon text-emerald-600" viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M64 0C28.7 0 0 28.7 0 64L0 448c0 35.3 28.7 64 64 64l256 0c35.3 0 64-28.7 64-64l0-288-128 0c-17.7 0-32-14.3-32-32L224 0 64 0zM256 0l0 128 128 0L256 0zM155.7 250.2L192 302.1l36.3-51.9c7.6-10.9 22.6-13.5 33.4-5.9s13.5 22.6 5.9 33.4L221.3 344l46.4 66.2c7.6 10.9 5 25.8-5.9 33.4s-25.8 5-33.4-5.9L192 385.8l-36.3 51.9c-7.6 10.9-22.6 13.5-33.4 5.9s-13.5-22.6-5.9-33.4L162.7 344l-46.4-66.2c-7.6-10.9-5-25.8 5.9-33.4s25.8-5 33.4 5.9z"></path></svg>
+                            <span>Download Excel/CSV Report</span>
+                        </button>
+                        <label class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2 cursor-pointer">
+                            <svg aria-hidden="true" focusable="false" class="app-icon " viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M288 109.3L288 352c0 17.7-14.3 32-32 32s-32-14.3-32-32l0-242.7-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352l128 0c0 35.3 28.7 64 64 64s64-28.7 64-64l128 0c35.3 0 64 28.7 64 64l0 32c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64l0-32c0-35.3 28.7-64 64-64zM432 456a24 24 0 1 0 0-48 24 24 0 1 0 0 48z"></path></svg>
+                            <span>Verify Backup & Dry Run (JSON)</span>
+                            <input type="file" accept=".json" onchange="MYCARBackupPreview.inspect(event)" class="hidden">
+                        </label>
+                        <div id="mycar-backup-preview" class="mycar-backup-preview" hidden></div>
+                        <button onclick="clearAllData()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-2.5 rounded-xl text-xs transition">
+                            Clear All Data (Start Fresh)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-50 flex items-center space-x-2">
+            <svg aria-hidden="true" focusable="false" class="app-icon text-emerald-400" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209L241 337c-9.4 9.4-24.6 9.4-33.9 0l-64-64c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l47 47L335 175c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9z"></path></svg>
+            <span id="toast-msg">Success</span>
+        </div>
+
+    </div>
+
+
+    <section id="tng-import-modal" class="tng-overlay" role="dialog" aria-modal="true" aria-labelledby="tng-title" hidden>
+      <div class="tng-panel">
+        <div class="tng-heading"><div><h2 id="tng-title">Import Touch 'n Go statement</h2><p>Encrypted PDF is processed on your device. Password is not stored or uploaded.</p></div><button id="tng-close" type="button" aria-label="Close PDF importer">×</button></div>
+        <label class="tng-label" for="tng-file">Monthly TNG eWallet PDF statement</label>
+        <input id="tng-file" type="file" accept="application/pdf,.pdf">
+        <label class="tng-label" for="tng-password">PDF password (if encrypted)</label>
+        <input id="tng-password" type="password" placeholder="Enter PDF password" autocomplete="off">
+        <p class="tng-label">Import to vehicle: <strong id="tng-selected-vehicle"></strong></p>
+        <button type="button" id="tng-analyze" class="tng-primary">Read PDF & check duplicates</button>
+        <p id="tng-message" class="tng-message" role="status" aria-live="polite">Please select a monthly transaction statement.</p>
+        <div id="tng-results" hidden>
+          <div class="tng-stats"><span id="tng-count-new"></span><span id="tng-count-duplicate"></span><span id="tng-count-unsupported"></span></div>
+          <div class="tng-preview"><table><thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Amount</th><th>Status</th></tr></thead><tbody id="tng-rows"></tbody></table></div>
+          <p class="tng-note">Only new, successful toll/parking transactions will be added; duplicates and unsupported transactions are skipped. Verify the preview before saving.</p>
+          <button type="button" id="tng-save" class="tng-primary" disabled>Import new expenses</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- JavaScript Application Logic -->
+    <script src="./auth-config.js" defer></script>
+    <script src="./auth.js?v=3.4.2" defer></script>
+    <script src="./cloud-sync.js?v=staging-rpc-1" defer></script>
+    <script src="./sync-health.js?v=3.4.3" defer></script>
+    <script src="./restore-dry-run.js?v=3.4.5" defer></script>
+    <script src="./backup-preview.js?v=3.4.5" defer></script>
+    <script src="./app.js?v=staging-rpc-1" defer></script>
+    <script src="./vehicle-photos.js?v=3.4.2" defer></script>
+    <script src="./tng-import.js?v=3.4.2" defer></script>
+</body>
+</html>
