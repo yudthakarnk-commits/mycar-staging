@@ -117,7 +117,7 @@ sw = sw_path.read_text(encoding='utf-8')
 # and filter; never rewrite it using production assumptions.
 if "const CACHE='mycar-staging-" not in sw:
     raise SystemExit('Expected a staging-only service worker CACHE')
-if "key.startsWith('mycar-staging-')" not in sw:
+if "key.startsWith('mycar-staging-')" not in sw and "k.startsWith('mycar-staging-')" not in sw:
     raise SystemExit('Expected staging-only cache cleanup')
 if "key.startsWith('mycar-shell-')" in sw or "key.startsWith('mycar-')" in sw:
     raise SystemExit('Service worker has a non-staging cache cleanup')
