@@ -36,6 +36,9 @@ async function call(name,payload){
 function convert(file){
  if(!file||typeof file!=='object'||Array.isArray(file) || file.type==='MYCAR_PERIOD_REPORT_NOT_FOR_RESTORE')
   throw Error('Select a full MYCAR JSON backup, not a monthly report.');
+ const validation=window.MYCARBackupPreview?.validate?.(file);
+ if(!validation?.valid)
+  throw Error('Backup validation failed: '+(validation?.errors||['Validator is unavailable.']).slice(0,3).join(' | '));
  for(const col of COLS)if(!Array.isArray(file[col]))throw Error('Missing '+col+' collection.');
  if(!file.vehicles.length)throw Error('Backup needs at least one vehicle.');
  const vehicleIds=new Set(), rows=[], seen=new Set();
