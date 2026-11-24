@@ -14,6 +14,7 @@ const MYCARCloud = (() => {
   let lastError = null, lastRpcCheck = null, lastRpcWrite = null, restoreMaintenance = false;
   const QA_TARGET='id_43d90c55-caa8-4c80-9489-f9b95fa4a856';
   let qaLostAckArmed=false, qaLostAckResult=null;
+  let qaBeforeCommitArmed=false, qaBeforeCommitResult=null;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -95,6 +96,18 @@ const MYCARCloud = (() => {
   }
   async function rpc(name, payload) {
     try {
+      // STAGING-only, one-shot fault before dispatch. No request leaves the browser.
+      // The ordinary saved-flight retry path must recover the same request ID.
+      if(name==='mycar_apply_changes' && qaBeforeCommitArmed &&
+         AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co' &&
+         payload?.p_operations?.length===1 &&
+         payload.p_operations[0].collection==='fuel' &&
+         payload.p_operations[0].record_id===QA_TARGET){
+        qaBeforeCommitArmed=false;
+        qaBeforeCommitResult={stage:'blocked-before-dispatch',requestId:payload.p_request_id,
+          beforeRevision:payload.p_expected_revision,at:new Date().toISOString()};
+        throw new Error('STAGING_QA_SIMULATED_DROP_BEFORE_DISPATCH');
+      }
       const data=await request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
       if(name==='mycar_get_sync_state')lastRpcCheck={ok:true,at:new Date().toISOString()};
       if(name==='mycar_apply_changes'){
@@ -271,6 +284,11 @@ const MYCARCloud = (() => {
       }
       if (!active||generation!==expectedGeneration) return;
       serverRevision=Number(result.revision);
+      if(qaBeforeCommitResult?.stage==='blocked-before-dispatch' &&
+         qaBeforeCommitResult.requestId===flight.requestId){
+        qaBeforeCommitResult={...qaBeforeCommitResult,stage:'retry-committed',
+          commitRevision:result.revision,at:new Date().toISOString()};
+      }
       // Acknowledged writes become the new server baseline for subsequent local edits.
       if(currentRemote){
         for(const [,sent] of flight.entries){
@@ -315,6 +333,13 @@ const MYCARCloud = (() => {
           qaLostAckResult={...qaLostAckResult,
             stage:qaLostAckResult.commitRevision===qaLostAckResult.recoveredRevision &&
                   qaLostAckResult.commitRevision===qaLostAckResult.beforeRevision+1 &&
+                  !readFlight()?'pass':'needs-review',
+            pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
+            at:new Date().toISOString()};
+        }
+        if(qaBeforeCommitResult?.stage==='retry-committed'){
+          qaBeforeCommitResult={...qaBeforeCommitResult,
+            stage:qaBeforeCommitResult.commitRevision===qaBeforeCommitResult.beforeRevision+1 &&
                   !readFlight()?'pass':'needs-review',
             pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
             at:new Date().toISOString()};
@@ -372,6 +397,7 @@ const MYCARCloud = (() => {
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
     qaLostAckArmed=false;qaLostAckResult=null;
+    qaBeforeCommitArmed=false;qaBeforeCommitResult=null;
     serverRevision=null;knownRemote=null;knownRevision=null;currentRemote=null;conflictKey=null;restoreBarrierRevision=0;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
@@ -389,7 +415,7 @@ const MYCARCloud = (() => {
       serverRevision,restoreBarrierRevision,baselineKnown:knownRemote!==null,baselineRevision:knownRevision,
       conflictWaiting:!!conflictKey, storedFlight:!!readFlight(),
       lastRpcCheck,lastRpcWrite,lastError,
-      qaLostAckArmed,qaLostAckResult,
+      qaLostAckArmed,qaLostAckResult,qaBeforeCommitArmed,qaBeforeCommitResult,
       lastSuccessful:lastSuccessful?.toISOString()||null,
       projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
     };
@@ -425,10 +451,11 @@ const MYCARCloud = (() => {
   function armLostAckTest(){
     if(AuthManager.config?.url!=='https://dlbshlvyhfwkorooxbnu.supabase.co'||
        !active||busy||restoreMaintenance||currentPendingCount()||conflictKey||readFlight()||
-       serverRevision===null||!navigator.onLine)
+       serverRevision===null||!navigator.onLine||qaBeforeCommitArmed)
       throw new Error('STAGING must be online, idle, and fully synced with zero pending records.');
     if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
       throw new Error('The designated staging test Fuel record is missing.');
+    qaBeforeCommitArmed=false;
     qaLostAckArmed=true;
     qaLostAckResult={stage:'armed',beforeRevision:serverRevision,at:new Date().toISOString()};
     return 'Test armed for the 10,409 km Fuel record only. Edit and save this record once.';
@@ -437,6 +464,23 @@ const MYCARCloud = (() => {
     qaLostAckArmed=false;
     if(qaLostAckResult?.stage==='armed')qaLostAckResult={stage:'cancelled',at:new Date().toISOString()};
   }
+  function armBeforeCommitTest(){
+    if(AuthManager.config?.url!=='https://dlbshlvyhfwkorooxbnu.supabase.co'||
+       !active||busy||restoreMaintenance||currentPendingCount()||conflictKey||readFlight()||
+       serverRevision===null||!navigator.onLine||qaLostAckArmed)
+      throw new Error('STAGING must be online, idle, and fully synced with zero pending records.');
+    if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
+      throw new Error('The designated staging test Fuel record is missing.');
+    qaBeforeCommitArmed=true;
+    qaBeforeCommitResult={stage:'armed',beforeRevision:serverRevision,at:new Date().toISOString()};
+    return 'Before-dispatch simulation armed. Edit and save the 10,409 km Fuel record once.';
+  }
+  function cancelBeforeCommitTest(){
+    qaBeforeCommitArmed=false;
+    if(qaBeforeCommitResult?.stage==='armed')
+      qaBeforeCommitResult={stage:'cancelled',at:new Date().toISOString()};
+  }
   return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,armLostAckTest,cancelLostAckTest,
+    armBeforeCommitTest,cancelBeforeCommitTest,
     get pendingCount(){return currentPendingCount();}};
 })();
