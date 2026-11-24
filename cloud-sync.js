@@ -104,8 +104,12 @@ const MYCARCloud = (() => {
          payload.p_operations[0].collection==='fuel' &&
          payload.p_operations[0].record_id===QA_TARGET){
         qaBeforeCommitArmed=false;
+        const requestedLiters=Number(payload.p_operations[0]?.payload?.liters);
         qaBeforeCommitResult={stage:'blocked-before-dispatch',requestId:payload.p_request_id,
-          beforeRevision:payload.p_expected_revision,at:new Date().toISOString()};
+          beforeRevision:payload.p_expected_revision,
+          beforeLiters:qaBeforeCommitResult?.beforeLiters??null,
+          requestedLiters:Number.isFinite(requestedLiters)?requestedLiters:null,
+          at:new Date().toISOString()};
         throw new Error('STAGING_QA_SIMULATED_DROP_BEFORE_DISPATCH');
       }
       const data=await request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
@@ -338,9 +342,22 @@ const MYCARCloud = (() => {
             at:new Date().toISOString()};
         }
         if(qaBeforeCommitResult?.stage==='retry-committed'){
+          // QA-only server readback: a committed request alone cannot prove the
+          // intended record value was actually changed.
+          const qaRows=await fetchRows();
+          const qaRecord=qaRows.find(row=>row.collection==='fuel' && row.record_id===QA_TARGET);
+          const serverLiters=Number(qaRecord?.payload?.liters);
+          const expectedLiters=qaBeforeCommitResult.requestedLiters;
+          const beforeLiters=qaBeforeCommitResult.beforeLiters;
+          const valueChanged=Number.isFinite(expectedLiters) && Number.isFinite(beforeLiters) &&
+                             expectedLiters!==beforeLiters;
+          const readbackMatches=!!qaRecord && !qaRecord.deleted &&
+                                Number.isFinite(serverLiters) && serverLiters===expectedLiters;
           qaBeforeCommitResult={...qaBeforeCommitResult,
             stage:qaBeforeCommitResult.commitRevision===qaBeforeCommitResult.beforeRevision+1 &&
-                  !readFlight()?'pass':'needs-review',
+                  !readFlight() && valueChanged && readbackMatches?'pass':'needs-review',
+            valueChanged,readbackMatches,
+            serverLiters:Number.isFinite(serverLiters)?serverLiters:null,
             pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
             at:new Date().toISOString()};
         }
@@ -472,7 +489,11 @@ const MYCARCloud = (() => {
     if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
       throw new Error('The designated staging test Fuel record is missing.');
     qaBeforeCommitArmed=true;
-    qaBeforeCommitResult={stage:'armed',beforeRevision:serverRevision,at:new Date().toISOString()};
+    const baselineLiters=Number(currentRemote[keyOf('fuel',QA_TARGET)]?.payload?.liters);
+    if(!Number.isFinite(baselineLiters))
+      throw new Error('Cannot arm test without a known numeric server Fuel quantity.');
+    qaBeforeCommitResult={stage:'armed',beforeRevision:serverRevision,
+      beforeLiters:baselineLiters,at:new Date().toISOString()};
     return 'Before-dispatch simulation armed. Edit and save the 10,409 km Fuel record once.';
   }
   function cancelBeforeCommitTest(){
