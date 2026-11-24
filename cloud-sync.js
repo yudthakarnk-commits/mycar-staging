@@ -12,9 +12,6 @@ const MYCARCloud = (() => {
   let serverRevision = null, knownRemote = null, currentRemote = null, conflictKey = null;
   let knownRevision=null, restoreBarrierRevision=0;
   let lastError = null, lastRpcCheck = null, lastRpcWrite = null, restoreMaintenance = false;
-  const QA_TARGET='id_43d90c55-caa8-4c80-9489-f9b95fa4a856';
-  let qaLostAckArmed=false, qaLostAckResult=null;
-  let qaBeforeCommitArmed=false, qaBeforeCommitResult=null;
   const keyOf = (type,id) => type+'|'+id;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isSafeRecord = (item) => !!item && typeof item.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(item.id);
@@ -96,45 +93,14 @@ const MYCARCloud = (() => {
   }
   async function rpc(name, payload) {
     try {
-      // STAGING-only, one-shot fault before dispatch. No request leaves the browser.
-      // The ordinary saved-flight retry path must recover the same request ID.
-      if(name==='mycar_apply_changes' && qaBeforeCommitArmed &&
-         AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co' &&
-         payload?.p_operations?.length===1 &&
-         payload.p_operations[0].collection==='fuel' &&
-         payload.p_operations[0].record_id===QA_TARGET){
-        qaBeforeCommitArmed=false;
-        const requestedLiters=Number(payload.p_operations[0]?.payload?.liters);
-        qaBeforeCommitResult={stage:'blocked-before-dispatch',requestId:payload.p_request_id,
-          beforeRevision:payload.p_expected_revision,
-          beforeLiters:qaBeforeCommitResult?.beforeLiters??null,
-          requestedLiters:Number.isFinite(requestedLiters)?requestedLiters:null,
-          at:new Date().toISOString()};
-        throw new Error('STAGING_QA_SIMULATED_DROP_BEFORE_DISPATCH');
-      }
       const data=await request(AuthManager.config.url+'/rest/v1/rpc/'+name,{method:'POST',body:payload});
-      if(name==='mycar_get_sync_state')lastRpcCheck={ok:true,at:new Date().toISOString()};
-      if(name==='mycar_apply_changes'){
-        lastRpcWrite={ok:true,at:new Date().toISOString()};
-        // Explicit, one-shot STAGING QA injection: the RPC already returned a
-        // successful committed result, but we deliberately withhold its ack.
-        // This tests the real sync-flight recovery path without cutting Wi-Fi.
-        if(qaLostAckArmed && payload?.p_operations?.length===1 &&
-           payload.p_operations[0].collection==='fuel' &&
-           payload.p_operations[0].record_id===QA_TARGET &&
-           data?.operation==='apply' && data?.ok===true){
-          qaLostAckArmed=false;
-          qaLostAckResult={stage:'ack-simulated-lost',requestId:payload.p_request_id,
-            beforeRevision:payload.p_expected_revision,commitRevision:data.revision,
-            at:new Date().toISOString()};
-          throw new Error('STAGING_QA_SIMULATED_LOST_ACK_AFTER_COMMIT');
-        }
-      }
+      if(name==='mycar_get_sync_state') lastRpcCheck={ok:true,at:new Date().toISOString()};
+      if(name==='mycar_apply_changes') lastRpcWrite={ok:true,at:new Date().toISOString()};
       return data;
     } catch(error) {
       const code=String(error?.message||error);
-      if(name==='mycar_get_sync_state')lastRpcCheck={ok:false,error:code,at:new Date().toISOString()};
-      if(name==='mycar_apply_changes')lastRpcWrite={ok:false,error:code,at:new Date().toISOString()};
+      if(name==='mycar_get_sync_state') lastRpcCheck={ok:false,error:code,at:new Date().toISOString()};
+      if(name==='mycar_apply_changes') lastRpcWrite={ok:false,error:code,at:new Date().toISOString()};
       throw error;
     }
   }
@@ -272,11 +238,6 @@ const MYCARCloud = (() => {
         catch (_) { /* Keep flight for retry. */ }
         if(status?.request?.operation==='apply'){
           result=status.request;
-          if(qaLostAckResult?.stage==='ack-simulated-lost' &&
-             qaLostAckResult.requestId===flight.requestId){
-            qaLostAckResult={...qaLostAckResult,stage:'status-recovered',
-              recoveredRevision:result.revision,at:new Date().toISOString()};
-          }
         }
         else {
           if(String(error.message||'').includes('STALE_REVISION')){
@@ -288,11 +249,6 @@ const MYCARCloud = (() => {
       }
       if (!active||generation!==expectedGeneration) return;
       serverRevision=Number(result.revision);
-      if(qaBeforeCommitResult?.stage==='blocked-before-dispatch' &&
-         qaBeforeCommitResult.requestId===flight.requestId){
-        qaBeforeCommitResult={...qaBeforeCommitResult,stage:'retry-committed',
-          commitRevision:result.revision,at:new Date().toISOString()};
-      }
       // Acknowledged writes become the new server baseline for subsequent local edits.
       if(currentRemote){
         for(const [,sent] of flight.entries){
@@ -333,34 +289,6 @@ const MYCARCloud = (() => {
       if(currentPendingCount()) await flushQueue(expectedGeneration);
       if(conflictKey) return; // Do not report successful sync while waiting for a decision.
       if(!currentPendingCount()){
-        if(qaLostAckResult?.stage==='status-recovered'){
-          qaLostAckResult={...qaLostAckResult,
-            stage:qaLostAckResult.commitRevision===qaLostAckResult.recoveredRevision &&
-                  qaLostAckResult.commitRevision===qaLostAckResult.beforeRevision+1 &&
-                  !readFlight()?'pass':'needs-review',
-            pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
-            at:new Date().toISOString()};
-        }
-        if(qaBeforeCommitResult?.stage==='retry-committed'){
-          // QA-only server readback: a committed request alone cannot prove the
-          // intended record value was actually changed.
-          const qaRows=await fetchRows();
-          const qaRecord=qaRows.find(row=>row.collection==='fuel' && row.record_id===QA_TARGET);
-          const serverLiters=Number(qaRecord?.payload?.liters);
-          const expectedLiters=qaBeforeCommitResult.requestedLiters;
-          const beforeLiters=qaBeforeCommitResult.beforeLiters;
-          const valueChanged=Number.isFinite(expectedLiters) && Number.isFinite(beforeLiters) &&
-                             expectedLiters!==beforeLiters;
-          const readbackMatches=!!qaRecord && !qaRecord.deleted &&
-                                Number.isFinite(serverLiters) && serverLiters===expectedLiters;
-          qaBeforeCommitResult={...qaBeforeCommitResult,
-            stage:qaBeforeCommitResult.commitRevision===qaBeforeCommitResult.beforeRevision+1 &&
-                  !readFlight() && valueChanged && readbackMatches?'pass':'needs-review',
-            valueChanged,readbackMatches,
-            serverLiters:Number.isFinite(serverLiters)?serverLiters:null,
-            pendingAfter:currentPendingCount(),revisionAfter:serverRevision,
-            at:new Date().toISOString()};
-        }
         knownRemote=clone(currentRemote);
         localStorage.setItem(baselineKey(),JSON.stringify(knownRemote));
         knownRevision=serverRevision;
@@ -413,8 +341,6 @@ const MYCARCloud = (() => {
     bridge=null;
     userId='';projectId='';queueKey='';initializedKey='';pending={};didInitialize=false;
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
-    qaLostAckArmed=false;qaLostAckResult=null;
-    qaBeforeCommitArmed=false;qaBeforeCommitResult=null;
     serverRevision=null;knownRemote=null;knownRevision=null;currentRemote=null;conflictKey=null;restoreBarrierRevision=0;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
     busy=false;
@@ -425,16 +351,14 @@ const MYCARCloud = (() => {
   document.addEventListener('visibilitychange',()=>{if(active && !document.hidden)schedule(0);});
   function diagnostics(){
     return {
-      clientVersion:'staging-conflict-v3-diagnostics',
+      clientVersion:'production-rc-prep-v1',
       active,online:navigator.onLine,busy,restoreMaintenance,
       pendingCount:currentPendingCount(),
       unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
       serverRevision,restoreBarrierRevision,baselineKnown:knownRemote!==null,baselineRevision:knownRevision,
       conflictWaiting:!!conflictKey, storedFlight:!!readFlight(),
       lastRpcCheck,lastRpcWrite,lastError,
-      qaLostAckArmed,qaLostAckResult,qaBeforeCommitArmed,qaBeforeCommitResult,
-      lastSuccessful:lastSuccessful?.toISOString()||null,
-      projectMatchesStaging:AuthManager.config?.url==='https://dlbshlvyhfwkorooxbnu.supabase.co'
+      lastSuccessful:lastSuccessful?.toISOString()||null
     };
   }
   async function exclusiveRestore(action, options={}) {
@@ -465,43 +389,6 @@ const MYCARCloud = (() => {
       if(active)schedule(0);
     }
   }
-  function armLostAckTest(){
-    if(AuthManager.config?.url!=='https://dlbshlvyhfwkorooxbnu.supabase.co'||
-       !active||busy||restoreMaintenance||currentPendingCount()||conflictKey||readFlight()||
-       serverRevision===null||!navigator.onLine||qaBeforeCommitArmed)
-      throw new Error('STAGING must be online, idle, and fully synced with zero pending records.');
-    if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
-      throw new Error('The designated staging test Fuel record is missing.');
-    qaBeforeCommitArmed=false;
-    qaLostAckArmed=true;
-    qaLostAckResult={stage:'armed',beforeRevision:serverRevision,at:new Date().toISOString()};
-    return 'Test armed for the 10,409 km Fuel record only. Edit and save this record once.';
-  }
-  function cancelLostAckTest(){
-    qaLostAckArmed=false;
-    if(qaLostAckResult?.stage==='armed')qaLostAckResult={stage:'cancelled',at:new Date().toISOString()};
-  }
-  function armBeforeCommitTest(){
-    if(AuthManager.config?.url!=='https://dlbshlvyhfwkorooxbnu.supabase.co'||
-       !active||busy||restoreMaintenance||currentPendingCount()||conflictKey||readFlight()||
-       serverRevision===null||!navigator.onLine||qaLostAckArmed)
-      throw new Error('STAGING must be online, idle, and fully synced with zero pending records.');
-    if(!currentRemote?.[keyOf('fuel',QA_TARGET)] || currentRemote[keyOf('fuel',QA_TARGET)].deleted)
-      throw new Error('The designated staging test Fuel record is missing.');
-    qaBeforeCommitArmed=true;
-    const baselineLiters=Number(currentRemote[keyOf('fuel',QA_TARGET)]?.payload?.liters);
-    if(!Number.isFinite(baselineLiters))
-      throw new Error('Cannot arm test without a known numeric server Fuel quantity.');
-    qaBeforeCommitResult={stage:'armed',beforeRevision:serverRevision,
-      beforeLiters:baselineLiters,at:new Date().toISOString()};
-    return 'Before-dispatch simulation armed. Edit and save the 10,409 km Fuel record once.';
-  }
-  function cancelBeforeCommitTest(){
-    qaBeforeCommitArmed=false;
-    if(qaBeforeCommitResult?.stage==='armed')
-      qaBeforeCommitResult={stage:'cancelled',at:new Date().toISOString()};
-  }
-  return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,armLostAckTest,cancelLostAckTest,
-    armBeforeCommitTest,cancelBeforeCommitTest,
+  return {start,stop,syncNow,onLocalChange,diagnostics,exclusiveRestore,
     get pendingCount(){return currentPendingCount();}};
 })();
