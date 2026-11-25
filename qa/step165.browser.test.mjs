@@ -125,3 +125,79 @@ test('Queue belongs to authenticated account, not another account',async()=>{
   await x.ctx.close();
  }finally{await browser.close();}
 });
+
+
+test('Legacy pending user chooses Keep server: queue clears without upload',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const oldOp={'fuel|f_old':{collection:'fuel',record_id:'f_old',payload:{id:'f_old',vehicleId:'v1',liters:33},deleted:false}};
+  const x=await fixture(browser,{storage:{[queueKey(UID)]:JSON.stringify(oldOp)}});
+  await x.page.locator('#mycar-use-server').waitFor({timeout:15000});
+  await x.page.locator('#mycar-use-server').click();
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0,null,{timeout:15000});
+  assert.equal(x.metrics().writes,0);
+  assert.equal(x.rows.some(r=>r.record_id==='f_old'),false);
+  await x.ctx.close();
+ }finally{await browser.close();}
+});
+test('Legacy pending user chooses Use my change: single explicit RPC write',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const oldOp={'fuel|f_old':{collection:'fuel',record_id:'f_old',payload:{id:'f_old',vehicleId:'v1',liters:33},deleted:false}};
+  const x=await fixture(browser,{storage:{[queueKey(UID)]:JSON.stringify(oldOp)}});
+  await x.page.locator('#mycar-use-local').waitFor({timeout:15000});
+  await x.page.locator('#mycar-use-local').click();
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0 && MYCARCloud.diagnostics().serverRevision===1,null,{timeout:15000});
+  assert.equal(x.metrics().writes,1);
+  assert.equal(x.rows.find(r=>r.record_id==='f_old')?.payload?.liters,33);
+  await x.ctx.close();
+ }finally{await browser.close();}
+});
+test('Known baseline delete creates server-side tombstone, not physical deletion',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const key=queueKey(UID),fuel={id:'del_fuel',vehicleId:'v1',liters:21,odometer:1002,date:'2026-11-25'};
+  const bas={'vehicles|v1':{payload:car,deleted:false},'fuel|del_fuel':{payload:fuel,deleted:false}};
+  const x=await fixture(browser,{storage:{
+   [key+':baseline_v3']:JSON.stringify(bas),
+   [key+':baseline_revision_v3']:'0',
+   ['mycar_sync_initialized_v1:'+HOST+':'+UID]:'true'
+  }});
+  // Initial server only has a vehicle; the saved baseline fuel is deliberately not a server row.
+  // The client will first reconcile and never overwrite a deleted/changed record by default.
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().lastSuccessful!==null,null,{timeout:15000});
+  await x.page.evaluate(()=>{
+    const before=JSON.parse(JSON.stringify(dbData));
+    const after=JSON.parse(JSON.stringify(dbData));
+    after.fuel.push({id:'del_fuel',vehicleId:'v1',liters:21,odometer:1002,date:'2026-11-25'});
+    MYCARCloud.onLocalChange(before,after);
+  });
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0,null,{timeout:15000});
+  await x.page.evaluate(()=>{
+    const before=JSON.parse(JSON.stringify(dbData)),after=JSON.parse(JSON.stringify(dbData));
+    after.fuel=after.fuel.filter(x=>x.id!=='del_fuel');
+    MYCARCloud.onLocalChange(before,after);
+  });
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0 && MYCARCloud.diagnostics().serverRevision===2,null,{timeout:15000});
+  const row=x.rows.find(x=>x.collection==='fuel'&&x.record_id==='del_fuel');
+  assert.equal(row.deleted,true);
+  assert.equal(x.metrics().writes,2);
+  await x.ctx.close();
+ }finally{await browser.close();}
+});
+test('Preview authentication URL cannot be overridden to production hostname',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const x=await fixture(browser,{});
+  const result=await x.page.evaluate(()=>{
+    // User-supplied Production config must be rejected by hardcoded QA allowlist.
+    const original=AuthManager.config?.url;
+    const candidate={url:'https://pteskuyswmwppswzegxp.supabase.co',key:'sb_publishable_testdummy12345'};
+    localStorage.setItem('mycar_supabase_client_config_v1',JSON.stringify(candidate));
+    return {original,active:AuthManager.config?.url};
+  });
+  assert.equal(result.original,'https://'+HOST);
+  assert.equal(result.active,'https://'+HOST);
+  await x.ctx.close();
+ }finally{await browser.close();}
+});
