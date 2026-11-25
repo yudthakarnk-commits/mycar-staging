@@ -23,7 +23,7 @@ Repository: `yudthakarnk-commits/mycar-staging`; clean preparation branch `prep/
 ## Completed QA evidence
 - Step 165 actual Chromium browser vs fully mocked Supabase: **5/5 PASS**. Run https://github.com/yudthakarnk-commits/mycar-staging/actions/runs/45581032850
 - Step 166 additional Chromium tests of Keep Server vs Use Local conflict, tombstone delete and preview auth isolation: **9/9 PASS**. Run https://github.com/yudthakarnk-commits/mycar-staging/actions/runs/45588285882
-- Expanded Restore preview/commit/reverse and pending-queue block tests: see current branch run, verify CI outcome before claiming PASS.
+- Expanded Chromium tests including Restore preview/commit/reverse and pending-queue block: **11/11 PASS**. Run https://github.com/yudthakarnk-commits/mycar-staging/actions/runs/45589486814
 - Existing clean RC contains generic RPC Restore client, fail-closed Queue protection and consistent `3.5.0-rc.1` JS/CSS references; STAGING-specific QA client is isolated in `qa/isolated-preview-step164`.
 
 ## Hard NO-GO conditions still present
