@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="./assets/backup-preview.css?v=3.5.0-rc.1">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MYCAR STAGING — Vehicle Tracker</title>
+    <title>MYCAR — Vehicle Tracker</title>
     <meta name="theme-color" content="#0f172a">
     <meta name="description" content="Track vehicle fuel, service, insurance, road tax, trips and expenses.">
     <meta name="mobile-web-app-capable" content="yes">
@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="MYCAR">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./assets/auth.css?v=3.5.0-rc.1">
-    <link rel="icon" type="image/png" sizes="192x192" href="./icons/staging.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/staging.svg">
     <!-- Precompiled Tailwind CSS (offline-ready) -->
     <link rel="stylesheet" href="./assets/app.css?v=3.5.0-rc.1">
@@ -151,9 +151,8 @@
         #mycar-app-shell > header.mycar-v341-header > .mycar-v341-actions{gap:2px}
       }
     </style>
-<style id="staging-warning-style">body::before{content:"MYCAR STAGING — TEST DATA ONLY";display:block;position:sticky;top:0;z-index:2147483647;text-align:center;background:#7c2d12;color:white;padding:6px;font:700 13px Arial,sans-serif;letter-spacing:.04em}</style>
 </head>
-<body data-environment="staging" class="bg-slate-950 flex justify-center items-center min-h-screen p-0 sm:p-4">
+<body data-environment="release-candidate" class="bg-slate-950 flex justify-center items-center min-h-screen p-0 sm:p-4">
 
     <section id="auth-screen" class="auth-screen" aria-label="MYCAR account authentication">
       <div class="auth-card">
@@ -747,25 +746,6 @@
                         </div>
                     </div>
                     <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-100 p-3"><span id="mycar-sync-detail" class="text-[11px] text-slate-600">Not yet synced</span><button type="button" onclick="MYCARCloud.syncNow()" class="text-xs font-bold text-emerald-700">Sync now</button></div>
-                    <div id="mycar-staging-build-info" style="border:2px solid #2563eb;border-radius:12px;padding:12px;background:#eff6ff;margin:10px 0;color:#1e40af">
-                      <div style="font-size:13px;font-weight:800;margin-bottom:8px">MYCAR STAGING · Build 2026-11-24.2</div>
-                      <button type="button" onclick="alert(JSON.stringify(MYCARCloud.diagnostics(),null,2))" style="display:block;width:100%;padding:12px;border-radius:9px;background:#1d4ed8;color:white;font-weight:700">Open Sync Diagnostics</button>
-                      <div style="font-size:11px;margin-top:8px">Staging-only diagnostic: no tokens, passwords or account ID are included.</div>
-                    </div>
-                    <div id="mycar-staging-timeout-qa" style="border:2px solid #b45309;border-radius:12px;padding:12px;background:#fffbeb;margin:10px 0;color:#78350f">
-                      <div style="font-size:13px;font-weight:800">STAGING · Network Timeout Recovery Test</div>
-                      <p style="font-size:11px;margin:7px 0">Simulates one lost HTTP acknowledgement AFTER a successful server commit. Only applies to the test Fuel record at 10,409 km. All other records use ordinary Sync. This is a simulation, not a real network outage.</p>
-                      <button type="button" onclick="try{alert(MYCARCloud.armLostAckTest())}catch(e){alert(e.message)}" style="display:block;width:100%;padding:11px;border-radius:8px;background:#92400e;color:white;font-weight:700">Arm One-Time Lost-Ack Test</button>
-                      <button type="button" onclick="MYCARCloud.cancelLostAckTest();alert('Test cancelled; normal Sync is unchanged.')" style="display:block;width:100%;margin-top:7px;padding:9px;border-radius:8px;background:white;border:1px solid #b45309;color:#78350f;font-weight:700">Cancel Test</button>
-                      <button type="button" onclick="alert(JSON.stringify(MYCARCloud.diagnostics().qaLostAckResult||{stage:'not-armed'},null,2))" style="display:block;width:100%;margin-top:7px;padding:9px;border-radius:8px;background:white;border:1px solid #b45309;color:#78350f;font-weight:700">View Lost-Ack Test Result</button>
-                    </div>
-                    <div id="mycar-staging-before-dispatch-qa" style="border:2px solid #0369a1;border-radius:12px;padding:12px;background:#f0f9ff;margin:10px 0;color:#075985">
-                      <div style="font-size:13px;font-weight:800">STAGING · Before-Dispatch Network Fault Simulation</div>
-                      <p style="font-size:11px;margin:7px 0">Simulates one failed send BEFORE the server receives the request, then retries via the saved request ID. To PASS, the test Fuel quantity must CHANGE and server readback must match. Only the 10,409 km test Fuel record is eligible. Simulation only: NOT a physical mid-flight interruption.</p>
-                      <button type="button" onclick="try{alert(MYCARCloud.armBeforeCommitTest())}catch(e){alert(e.message)}" style="display:block;width:100%;padding:11px;border-radius:8px;background:#0369a1;color:white;font-weight:700">Arm One-Time Before-Dispatch Test</button>
-                      <button type="button" onclick="MYCARCloud.cancelBeforeCommitTest();alert('Before-dispatch simulation cancelled.')" style="display:block;width:100%;margin-top:7px;padding:9px;border-radius:8px;background:white;border:1px solid #0369a1;color:#075985;font-weight:700">Cancel Before-Dispatch Test</button>
-                      <button type="button" onclick="alert(JSON.stringify(MYCARCloud.diagnostics().qaBeforeCommitResult||{stage:'not-armed'},null,2))" style="display:block;width:100%;margin-top:7px;padding:9px;border-radius:8px;background:white;border:1px solid #0369a1;color:#075985;font-weight:700">View Before-Dispatch Test Result</button>
-                    </div>
                     <div class="space-y-1">
                         <label class="text-xs font-semibold text-slate-600">Display Currency (base MYR)</label>
                         <select id="mycar-currency-select" aria-label="Display currency" onchange="MYCARCurrency.choose(this.value)" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold">
@@ -777,7 +757,7 @@
                         <p class="text-[10px] leading-5 text-slate-500 mt-1">Reference rates provided by <a class="underline" target="_blank" rel="noopener noreferrer" href="https://www.exchangerate-api.com">ExchangeRate-API</a>. Amounts entered and exported remain MYR; only on-screen values are converted.</p>
                     </div>
                     <div class="pt-2 space-y-2">
-                        <div class="text-center text-[11px] text-slate-500">MYCAR v3.5.0-rc.1 · RC preview (not deployed)</div>
+                        <div class="text-center text-[11px] text-slate-500">MYCAR v3.5.0-rc.1</div>
                         <button type="button" onclick="checkMYCARUpdates()" class="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold py-2.5 rounded-xl text-xs transition">Check for app updates</button>
                         <button id="install-app-btn" onclick="installMYCAR()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Install MYCAR App</button>
                         <p id="install-hint" class="text-[11px] text-slate-500">On Android: browser menu → Install app. On iPhone: Share → Add to Home Screen.</p>
@@ -809,12 +789,12 @@
                         <div id="mycar-backup-preview" class="mycar-backup-preview" hidden></div>
                         <style>#mycar-rpc-restore [hidden]{display:none!important}</style>
                         <section id="mycar-rpc-restore" style="border:2px solid #0f766e;border-radius:13px;padding:13px;background:#ecfdf5;color:#134e4a;display:grid;gap:9px">
-                          <div style="font-size:14px;font-weight:800">STAGING · Transactional RPC Restore</div>
-                          <p style="font-size:11px;line-height:1.5">MERGE ONLY: adds/updates backup records. Does not delete records missing from the file or existing tombstones. Requires Pending = 0. Preview creates no changes. Never use a real production backup here.</p>
+                          <div style="font-size:14px;font-weight:800">Transactional RPC Restore (Requires compatible backend)</div>
+                          <p style="font-size:11px;line-height:1.5">MERGE ONLY: adds/updates backup records. Does not delete records missing from the file or existing tombstones. Requires Pending = 0. Preview creates no changes. Use only backups belonging to the signed-in account. Do not test with live production data.</p>
                           <label style="font-size:12px;font-weight:700">1. Select full MYCAR backup (JSON)
                             <input id="mycar-restore-file" type="file" accept=".json,application/json" style="display:block;width:100%;margin-top:6px;font-size:12px">
                           </label>
-                          <button id="mycar-restore-preview" type="button" style="border-radius:8px;padding:10px;background:white;border:1px solid #059669;font-weight:700">2. Preview on STAGING Server (read-only)</button>
+                          <button id="mycar-restore-preview" type="button" style="border-radius:8px;padding:10px;background:white;border:1px solid #059669;font-weight:700">2. Preview on Server (read-only)</button>
                           <p id="mycar-restore-summary" style="font-size:12px;line-height:1.5"></p>
                           <div id="mycar-restore-commit" hidden style="display:grid;gap:7px">
                             <label style="font-size:12px">Type <strong>RESTORE</strong> to enable an explicit merge
@@ -863,13 +843,13 @@
     </section>
 
     <!-- JavaScript Application Logic -->
-    <script src="./auth-config.js" defer></script>
+    <script src="./auth-config.js?v=3.5.0-rc.1" defer></script>
     <script src="./auth.js?v=3.5.0-rc.1" defer></script>
     <script src="./cloud-sync.js?v=3.5.0-rc.1" defer></script>
     <script src="./sync-health.js?v=3.5.0-rc.1" defer></script>
     <script src="./restore-dry-run.js?v=3.5.0-rc.1" defer></script>
     <script src="./backup-preview.js?v=3.5.0-rc.1" defer></script>
-    <script src="./rpc-restore-staging.js?v=3.5.0-rc.1" defer></script>
+    <script src="./rpc-restore.js?v=3.5.0-rc.1" defer></script>
     <script src="./app.js?v=3.5.0-rc.1" defer></script>
     <script src="./vehicle-photos.js?v=3.5.0-rc.1" defer></script>
     <script src="./tng-import.js?v=3.5.0-rc.1" defer></script>
