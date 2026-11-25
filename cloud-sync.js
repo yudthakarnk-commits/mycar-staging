@@ -26,12 +26,42 @@ const MYCARCloud = (() => {
     const details=document.getElementById('mycar-sync-detail');
     if(details) details.textContent=message+(lastSuccessful ? ' · Last sync '+lastSuccessful.toLocaleString() : '');
   }
+  // Never interpret unreadable or malformed legacy pending edits as an empty queue.
+  // A failed read must block syncing without writing to the original localStorage key.
   function readQueue() {
-    try {
-      const value=JSON.parse(localStorage.getItem(queueKey)||'{}');
-      if(value && typeof value==='object' && !Array.isArray(value)) return value;
-    } catch(error) { console.warn('Cannot parse sync queue',error); }
-    return {};
+    const raw=localStorage.getItem(queueKey);
+    if(raw===null)return {};
+    let value;
+    try {value=JSON.parse(raw);} catch(_) {throw new Error('Stored offline queue is unreadable');}
+    if(!value || typeof value!=='object' || Array.isArray(value))
+      throw new Error('Stored offline queue has an invalid structure');
+    for(const [key,op] of Object.entries(value)){
+      if(!op || typeof op!=='object' || Array.isArray(op) ||
+         !COLLECTIONS.includes(op.collection) ||
+         !isSafeRecord({id:op.record_id}) ||
+         key!==keyOf(op.collection,op.record_id) ||
+         typeof op.deleted!=='boolean' ||
+         (!op.deleted && (!op.payload || typeof op.payload!=='object' ||
+                          Array.isArray(op.payload) || op.payload.id!==op.record_id)))
+        throw new Error('Stored offline queue contains an invalid entry');
+    }
+    return value;
+  }
+  function blockUnsafeQueue(reason) {
+    const existing=document.getElementById('mycar-queue-safety-blocker');
+    if(existing)existing.remove();
+    const guard=document.createElement('div');
+    guard.id='mycar-queue-safety-blocker';
+    Object.assign(guard.style,{position:'fixed',inset:'0',zIndex:'2147483647',display:'flex',
+      alignItems:'center',justifyContent:'center',padding:'24px',background:'#071527ed',color:'#fff'});
+    const message=document.createElement('div');
+    Object.assign(message.style,{maxWidth:'460px',background:'#182f47',borderRadius:'12px',
+      padding:'24px',fontFamily:'system-ui,sans-serif',lineHeight:'1.5'});
+    message.textContent='MYCAR paused for offline-data safety: '+reason+
+      '. Do not clear browser storage, sign out or reinstall. Contact support for manual recovery.';
+    guard.appendChild(message);
+    document.body.appendChild(guard);
+    notify('Sync paused: offline queue needs recovery','error');
   }
   function saveQueue() { localStorage.setItem(queueKey,JSON.stringify(pending)); }
   const baselineKey=()=>queueKey+':baseline_v3';
@@ -321,7 +351,12 @@ const MYCARCloud = (() => {
     bridge=callbacks;
     queueKey=`mycar_sync_pending_v1:${projectId}:${userId}`;
     initializedKey=`mycar_sync_initialized_v1:${projectId}:${userId}`;
-    pending=readQueue();
+    try {pending=readQueue();}
+    catch(error) {
+      pending={};
+      blockUnsafeQueue(String(error.message||error));
+      return;
+    }
     try{const old=JSON.parse(localStorage.getItem(baselineKey())||'null');knownRemote=old&&typeof old==='object'&&!Array.isArray(old)?old:null;}
     catch(_){knownRemote=null;}
     const rev=localStorage.getItem(baselineRevisionKey());
@@ -343,6 +378,7 @@ const MYCARCloud = (() => {
     lastSuccessful=null;lastError=null;lastRpcCheck=null;lastRpcWrite=null;
     serverRevision=null;knownRemote=null;knownRevision=null;currentRemote=null;conflictKey=null;restoreBarrierRevision=0;restoreMaintenance=false;
     const d=document.getElementById('mycar-conflict-dialog');if(d)d.remove();
+    const guard=document.getElementById('mycar-queue-safety-blocker');if(guard)guard.remove();
     busy=false;
   }
   window.addEventListener('online',()=>{if(active)schedule(0);});
@@ -351,7 +387,7 @@ const MYCARCloud = (() => {
   document.addEventListener('visibilitychange',()=>{if(active && !document.hidden)schedule(0);});
   function diagnostics(){
     return {
-      clientVersion:'production-rc-prep-v1',
+      clientVersion:'3.5.0-rc.1',
       active,online:navigator.onLine,busy,restoreMaintenance,
       pendingCount:currentPendingCount(),
       unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
