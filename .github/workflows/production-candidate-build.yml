@@ -1,0 +1,88 @@
+name: Build MYCAR production candidate (NO DEPLOY)
+on:
+  push:
+    branches: [prep/production-package-20261125]
+    paths: ['.github/workflows/production-candidate-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/prep/production-package-20261125'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e47312fd75c6f14bac3c979022646ceb9aa44523
+          path: candidate
+          persist-credentials: false
+      - name: Read pinned legacy production assets and public configuration
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/yudthakarnk-commits/mycar.git legacy
+          git -C legacy checkout --detach c0a0eab78d80945bd2b36c4800f651713fb78f96
+      - name: Assemble and validate candidate (no network calls to Supabase)
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, re, shutil, struct
+          from pathlib import Path
+          src, old, dest = Path('candidate'), Path('legacy'), Path('site')
+          endpoint='https://pteskuyswmwppswzegxp.supabase.co'
+          version='3.5.0-rc.2-production.1'
+          files=['index.html','auth.js','cloud-sync.js','app.js','sync-health.js','restore-dry-run.js','backup-preview.js','rpc-restore.js','tng-import.js','vehicle-photos.js','service-worker.js','manifest.webmanifest']
+          files+=['assets/'+x for x in ['auth.css','app.css','car-photos.css','tng-import.css','mobile-viewport-fix.css','sync-health.css','backup-preview.css']]
+          original=['assets/toyota-corolla-cross-3q.webp','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png']
+          for rel in files+original:
+              p=dest/rel
+              p.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2((old if rel in original else src)/rel,p)
+          config=(old/'auth-config.js').read_text()
+          u=re.search(r'supabaseUrl:\s*"([^"]+)"',config)
+          k=re.search(r'supabasePublishableKey:\s*"([^"]+)"',config)
+          assert u and u.group(1)==endpoint and k and re.fullmatch(r'sb_publishable_[A-Za-z0-9_-]{10,}',k.group(1)), 'Invalid pinned public configuration'
+          (dest/'auth-config.js').write_text('window.MYCAR_AUTH_CONFIG = '+json.dumps(dict(expectedOrigin=endpoint,supabaseUrl=endpoint,supabasePublishableKey=k.group(1)))+';\n')
+          def edit(rel,old,new):
+              p=dest/rel
+              s=p.read_text()
+              assert old in s, 'Unexpected source '+rel
+              p.write_text(s.replace(old,new))
+          for rel in ['index.html','cloud-sync.js','service-worker.js']:
+              edit(rel,'3.5.0-rc.2',version)
+          edit('index.html','./icons/staging.svg','./icons/apple-touch-icon.png')
+          edit('app.js','mycar-sw-loaded-v3.5.0-rc.1','mycar-sw-loaded-'+version)
+          edit('service-worker.js','/* MYCAR staging-only PWA cache. Never cache production origins or other app scopes. */','/* MYCAR scoped PWA cache. Do not delete unrelated origin caches. */')
+          edit('service-worker.js',"const SCOPE=", "SHELL.push('./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./assets/toyota-corolla-cross-3q.webp');\nconst SCOPE=")
+          # Preserve legacy cache until approved upgrade and rollback decisions; never delete origin-wide storage.
+          sw=(dest/'service-worker.js').read_text()
+          assert "const CACHE_PREFIX='mycar-rc:'+self.registration.scope+':'" in sw and 'k.startsWith(CACHE_PREFIX)' in sw
+          for rel in re.findall(r"'\./([^']*)'",sw.split('const SHELL=')[1].split('const SCOPE=')[0]):
+              if rel: assert (dest/rel.split('?')[0]).is_file(), 'Missing shell asset '+rel
+          for n in (192,512):
+              b=(dest/f'icons/icon-{n}.png').read_bytes()
+              assert b[:8]==bytes.fromhex('89504e470d0a1a0a') and struct.unpack('>II',b[16:24])==(n,n)
+          b=(dest/'icons/apple-touch-icon.png').read_bytes()
+          assert b[:8]==bytes.fromhex('89504e470d0a1a0a') and len(b)>24
+          b=(dest/'assets/toyota-corolla-cross-3q.webp').read_bytes()
+          assert b[:4]==b'RIFF' and b[8:12]==b'WEBP'
+          m=json.loads((dest/'manifest.webmanifest').read_text())
+          assert m['id']==m['scope']==m['start_url']=='./' and m['short_name']=='MYCAR'
+          assert "mycar_auth_session_v1" in (dest/'auth.js').read_text()
+          assert "mycar_app_data_v2" in (dest/'app.js').read_text()
+          for p in dest.rglob('*'):
+              if p.suffix in ['.js','.html','.css','.webmanifest']:
+                  s=p.read_text()
+                  assert 'dlbshlvyhfwkorooxbnu' not in s and 'STAGING - TEST DATA' not in s and not re.search(r'sb_secret_[A-Za-z0-9_-]{10,}',s), 'Unsafe candidate '+str(p)
+          assert len(list(p for p in dest.rglob('*') if p.is_file()))==24
+          assert 'mycar-restore-choose' in (dest/'index.html').read_text()
+          assert 'mycar_apply_changes' in (dest/'cloud-sync.js').read_text()
+          Path('SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+str(p.relative_to(dest))+'\n' for p in sorted(dest.rglob('*')) if p.is_file()))
+          print('24-file candidate assembled; no deployment')
+          PY
+          for f in site/*.js; do node --check "$f"; done
+          (cd site && sha256sum -c ../SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mycar-production-candidate-NOT-DEPLOYED
+          path: |
+            site/
+            SHA256SUMS.txt
+          if-no-files-found: error
