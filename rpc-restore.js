@@ -64,7 +64,7 @@ function convert(file){
 }
 function controls(working){
  busy=working;
- for(const id of ['mycar-restore-file','mycar-restore-preview','mycar-restore-confirm-button','mycar-restore-reverse','mycar-restore-recover'])
+ for(const id of ['mycar-restore-file','mycar-restore-choose','mycar-restore-preview','mycar-restore-confirm-button','mycar-restore-reverse','mycar-restore-recover'])
   if(byId(id))byId(id).disabled=working;
 }
 async function chooseFile(event){
@@ -73,12 +73,15 @@ async function chooseFile(event){
  byId('mycar-restore-confirm').value='';
  byId('mycar-restore-summary').textContent='';
  const file=event.target.files?.[0];if(!file)return;
+ const info=byId('mycar-restore-file-info');
+ info.textContent=file.name+' · Validating…';
  try{
   if(file.size>1000000)throw Error('Backup file must be under 1 MB.');
   const data=JSON.parse(await file.text());
   prepared=convert(data);
+  info.textContent=file.name+' · Validated · '+prepared.length+' records';
   label('Validated '+prepared.length+' records locally. Click Preview on server. No data has changed.');
- }catch(e){label('Backup rejected: '+e.message,'#b91c1c');}
+ }catch(e){info.textContent=file.name+' · Rejected';label('Backup rejected: '+e.message,'#b91c1c');}
  event.target.value='';
 }
 async function doPreview(){
@@ -141,6 +144,7 @@ async function commitRestore(){
   localStorage.setItem(key(),JSON.stringify({requestId:id,revision:result.revision,createdAt:new Date().toISOString()}));
   localStorage.removeItem(flightKey());
   prepared=null;preview=null;
+  byId('mycar-restore-file-info').textContent='No file selected · Merge completed';
   byId('mycar-restore-commit').hidden=true;
   byId('mycar-restore-confirm').value='';
   byId('mycar-restore-summary').textContent='';
@@ -212,6 +216,7 @@ function refreshReverseButton(){
 }
 function init(){
  const box=byId('mycar-rpc-restore');if(!box)return;
+ byId('mycar-restore-choose').addEventListener('click',()=>byId('mycar-restore-file').click());
  byId('mycar-restore-file').addEventListener('change',chooseFile);
  byId('mycar-restore-preview').addEventListener('click',doPreview);
  byId('mycar-restore-confirm-button').addEventListener('click',commitRestore);
