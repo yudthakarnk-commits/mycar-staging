@@ -1168,43 +1168,9 @@
         }
 
         function importJSON(event) {
-            // STAGING SAFETY: legacy local replacement bypasses server-side restore protocol.
-            // Keep export functionality; restore requires controlled RPC workflow.
+            // Direct local replacement is unsafe with revision-aware cloud sync.
             if (event?.target) event.target.value='';
-            alert('STAGING: Legacy JSON restore is disabled until server-side Restore RPC UI passes acceptance tests.');
-            return;
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (isValidBackup(parsed)) {
-                        if (!confirm('Replace all current records with this backup? Export a backup first if needed.')) return;
-                        dbData = parsed;
-                        saveData();
-                        updateVehicleSelector();
-                        refreshActiveView();
-                        closeSettingsModal();
-                        showToast("Backup restored successfully");
-                    } else {
-                        alert("Invalid backup file format.");
-                    }
-                } catch (err) {
-                    alert("Failed to parse JSON backup file.");
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function clearAllData() {
-            if (!confirm("Are you sure you want to reset and clear all data?")) return;
-            dbData = newEmptyData();
-            saveData();
-            updateVehicleSelector();
-            refreshActiveView();
-            closeSettingsModal();
-            showToast("App data reset");
+            alert('Direct JSON replacement is disabled. Use Verify Backup & Dry Run, then the controlled RPC Restore workflow after backend verification.');
         }
 
         function initializeMYCARAfterLogin(user) {
@@ -1241,7 +1207,7 @@
                     refreshActiveView();
                 }
             });
-            window.MYCARRestoreStaging?.refreshReverseButton?.();
+            window.MYCARRestore?.refreshReverseButton?.();
         }
 
         function lockMYCARAfterLogout() {
