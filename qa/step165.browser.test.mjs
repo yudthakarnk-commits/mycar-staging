@@ -13,7 +13,11 @@ async function fixture(browser,option={}){
  const storage={'mycar_auth_session_v1':JSON.stringify({
   access_token:'fake-nonvalid-token',refresh_token:'fake-refresh',project:HOST,
   expires_at:Math.floor(Date.now()/1000)+3600}),...(option.storage||{})};
- await page.addInitScript(seed=>{for(const [k,v] of Object.entries(seed))localStorage.setItem(k,v)},storage);
+ await page.addInitScript(seed=>{
+   for(const [k,v] of Object.entries(seed))localStorage.setItem(k,v);
+   // Stabilize non-PWA test cases while still checking worker registration/scope separately.
+   sessionStorage.setItem('mycar-sw-loaded-v3.5.0-rc.1','yes');
+ },storage);
  let revision=0,writes=0,lose=!!option.lostAck;
  const ops=new Map(),snapshots=new Map();
  const rows=[{collection:'vehicles',record_id:'v1',payload:car,deleted:false,updated_at:'2026-11-25'}];
@@ -254,7 +258,12 @@ test('Restore: JSON upload, preview read-only, explicit commit and immediate rev
   });
   await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Validated'),null,{timeout:15000});
   await x.page.evaluate(()=>document.getElementById('mycar-restore-preview').click());
-  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Preview completed'),null,{timeout:15000});
+  await x.page.waitForTimeout(300);
+  console.log('RESTORE PREVIEW DIAG',await x.page.evaluate(()=>({
+    status:document.getElementById('mycar-restore-status')?.textContent,
+    diagnostics:MYCARCloud.diagnostics()
+  })));
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Preview completed'),null,{timeout:6000});
   assert.equal(x.metrics().writes,0,'Preview must not write');
   await x.page.locator('#mycar-restore-confirm').fill('RESTORE');
   x.page.on('dialog',d=>d.accept());
@@ -281,9 +290,14 @@ test('Restore: pending legacy queue blocks preview and no server write occurs',a
   await x.page.locator('#mycar-restore-file').setInputFiles({
    name:'safe-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))
   });
-  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Validated'),null,{timeout:15000});
+  await x.page.waitForTimeout(300);
+  console.log('RESTORE PENDING DIAG',await x.page.evaluate(()=>({
+    status:document.getElementById('mycar-restore-status')?.textContent,
+    diagnostics:MYCARCloud.diagnostics()
+  })));
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Validated'),null,{timeout:6000});
   await x.page.evaluate(()=>document.getElementById('mycar-restore-preview').click());
-  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('queue'),null,{timeout:15000});
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('queue'),null,{timeout:6000});
   assert.equal(x.metrics().writes,0);
   await x.ctx.close();
  }finally{await browser.close()}
