@@ -265,7 +265,8 @@ test('Restore: JSON upload, preview read-only, explicit commit and immediate rev
   })));
   await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Preview completed'),null,{timeout:6000});
   assert.equal(x.metrics().writes,0,'Preview must not write');
-  await x.page.locator('#mycar-restore-confirm').fill('RESTORE');
+  // The Settings modal is closed in this fixture; set the field without triggering a visibility wait.
+  await x.page.evaluate(()=>{document.getElementById('mycar-restore-confirm').value='RESTORE';});
   x.page.on('dialog',d=>d.accept());
   await x.page.evaluate(()=>document.getElementById('mycar-restore-confirm-button').click());
   await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('MERGE RESTORE COMMITTED'),null,{timeout:15000});
