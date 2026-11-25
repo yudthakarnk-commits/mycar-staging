@@ -15,7 +15,7 @@ async function fixture(browser,option={}){
   expires_at:Math.floor(Date.now()/1000)+3600}),...(option.storage||{})};
  await page.addInitScript(seed=>{for(const [k,v] of Object.entries(seed))localStorage.setItem(k,v)},storage);
  let revision=0,writes=0,lose=!!option.lostAck;
- const ops=new Map();
+ const ops=new Map(),snapshots=new Map();
  const rows=[{collection:'vehicles',record_id:'v1',payload:car,deleted:false,updated_at:'2026-11-25'}];
  const json=(route,data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data),headers:{'access-control-allow-origin':'*'}});
  await ctx.route('**/*',async route=>{
@@ -27,6 +27,44 @@ async function fixture(browser,option={}){
    const b=req.postDataJSON();return json(route,{revision,restore_barrier_revision:0,request:ops.get(b.p_request_id)||null});
   }
   if(url.includes('/rest/v1/mycar_records'))return json(route,rows);
+  if(url.includes('/rpc/mycar_restore_preview')){
+   const b=req.postDataJSON();
+   return json(route,{mode:'merge-only',records:b.p_backup.length,revision,confirmation_token:'qa-confirm:'+revision});
+  }
+  if(url.includes('/rpc/mycar_restore_merge')){
+   const b=req.postDataJSON();
+   let result=ops.get(b.p_request_id);
+   if(!result){
+    if(b.p_expected_revision!==revision)return json(route,{message:'STALE_REVISION'},409);
+    if(b.p_confirmation_token!=='qa-confirm:'+revision)return json(route,{message:'INVALID_CONFIRMATION'},400);
+    snapshots.set(b.p_request_id,rows.map(v=>JSON.parse(JSON.stringify(v))));
+    for(const op of b.p_backup){
+     const r={...op,updated_at:'2026-11-25'};
+     const pos=rows.findIndex(x=>x.collection===op.collection&&x.record_id===op.record_id);
+     if(pos<0)rows.push(r);else rows[pos]=r;
+    }
+    revision++;writes++;
+    result={operation:'restore',revision,ok:true,request_id:b.p_request_id};
+    ops.set(b.p_request_id,result);
+   }
+   return json(route,result);
+  }
+  if(url.includes('/rpc/mycar_reverse_restore')){
+   const b=req.postDataJSON();
+   let result=ops.get(b.p_request_id);
+   if(!result){
+    const original=ops.get(b.p_original_request_id);
+    if(b.p_expected_revision!==revision||original?.revision!==revision)
+     return json(route,{message:'STALE_REVISION'},409);
+    const before=snapshots.get(b.p_original_request_id);
+    if(!before)return json(route,{message:'SNAPSHOT_NOT_FOUND'},404);
+    rows.splice(0,rows.length,...before.map(v=>JSON.parse(JSON.stringify(v))));
+    revision++;writes++;
+    result={operation:'reverse',revision,ok:true};
+    ops.set(b.p_request_id,result);
+   }
+   return json(route,result);
+  }
   if(url.includes('/rpc/mycar_apply_changes')){
    const b=req.postDataJSON();
    let result=ops.get(b.p_request_id);
@@ -202,4 +240,51 @@ test('Preview authentication URL cannot be overridden to production hostname',as
   assert.equal(result.active,'https://'+HOST);
   await x.ctx.close();
  }finally{await browser.close();}
+});
+
+test('Restore: JSON upload, preview read-only, explicit commit and immediate reverse',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const x=await fixture(browser);
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().lastSuccessful!==null,null,{timeout:15000});
+  const backup={activeVehicleId:'v1',vehicles:[car],fuel:[{id:'restored01',vehicleId:'v1',liters:44,date:'2026-11-25'}],
+   maintenance:[],tax:[],trips:[],other:[]};
+  await x.page.locator('#mycar-restore-file').setInputFiles({
+   name:'synthetic-test.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))
+  });
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Validated'),null,{timeout:15000});
+  await x.page.evaluate(()=>document.getElementById('mycar-restore-preview').click());
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Preview completed'),null,{timeout:15000});
+  assert.equal(x.metrics().writes,0,'Preview must not write');
+  await x.page.locator('#mycar-restore-confirm').fill('RESTORE');
+  x.page.on('dialog',d=>d.accept());
+  await x.page.evaluate(()=>document.getElementById('mycar-restore-confirm-button').click());
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('MERGE RESTORE COMMITTED'),null,{timeout:15000});
+  assert.equal(x.metrics().writes,1);
+  assert.equal(x.rows.some(r=>r.collection==='fuel'&&r.record_id==='restored01'),true);
+  await x.page.waitForFunction(()=>!MYCARCloud.diagnostics().busy,null,{timeout:15000});
+  await x.page.evaluate(()=>document.getElementById('mycar-restore-reverse').click());
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('REVERSE RESTORE COMMITTED'),null,{timeout:15000});
+  assert.equal(x.metrics().writes,2);
+  assert.equal(x.rows.some(r=>r.collection==='fuel'&&r.record_id==='restored01'),false);
+  await x.ctx.close();
+ }finally{await browser.close()}
+});
+test('Restore: pending legacy queue blocks preview and no server write occurs',async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const pending={'fuel|f_old':{collection:'fuel',record_id:'f_old',
+   payload:{id:'f_old',vehicleId:'v1',liters:30},deleted:false}};
+  const x=await fixture(browser,{storage:{[queueKey(UID)]:JSON.stringify(pending)}});
+  await x.page.locator('#mycar-conflict-dialog').waitFor({timeout:15000});
+  const backup={activeVehicleId:'v1',vehicles:[car],fuel:[],maintenance:[],tax:[],trips:[],other:[]};
+  await x.page.locator('#mycar-restore-file').setInputFiles({
+   name:'safe-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))
+  });
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('Validated'),null,{timeout:15000});
+  await x.page.evaluate(()=>document.getElementById('mycar-restore-preview').click());
+  await x.page.waitForFunction(()=>document.getElementById('mycar-restore-status')?.textContent.includes('queue'),null,{timeout:15000});
+  assert.equal(x.metrics().writes,0);
+  await x.ctx.close();
+ }finally{await browser.close()}
 });
