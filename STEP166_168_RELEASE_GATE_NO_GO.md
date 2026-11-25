@@ -7,6 +7,8 @@ Repository: `yudthakarnk-commits/mycar-staging`; clean preparation branch `prep/
 ## Read-only live environment verification
 ### Production (Supabase `pteskuyswmwppswzegxp`)
 - Live read-only aggregate: **254 records** (253 active, 1 tombstone) across **3 accounts**.
+- Read-only permission check: `authenticated` still has SELECT, INSERT and UPDATE on `public.mycar_records`. This confirms Legacy Direct Write remains enabled.
+- Production contains `mycar_set_updated_at` trigger function only among `public.mycar_%` functions; the five staging sync/restore RPCs are **not** installed.
 - No Production writes, migrations, privilege revocations, GitHub changes or PWA deployments were executed during these checks.
 
 ### STAGING (Supabase `dlbshlvyhfwkorooxbnu`)
