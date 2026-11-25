@@ -1,0 +1,31 @@
+name: MYCAR QA Chromium E2E localhost only (NO DEPLOY)
+on:
+  push:
+    branches: [qa/isolated-preview-step164]
+    paths: ['qa/step165.browser.test.mjs', '.github/workflows/step165-localhost-e2e.yml', 'app.js', 'auth.js', 'cloud-sync.js', 'index.html', 'service-worker.js']
+permissions:
+  contents: read
+jobs:
+  qa:
+    if: github.ref == 'refs/heads/qa/isolated-preview-step164'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start localhost-only site (distinct origin from github.io)
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/mycarqa-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mycarqa-http.log
+          exit 1
+      - name: Run browser E2E with all external network mocked or blocked
+        run: node --test qa/step165.browser.test.mjs
