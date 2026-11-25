@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="./assets/sync-health.css?v=3.4.3">
-    <link rel="stylesheet" href="./assets/backup-preview.css?v=3.4.4">
+    <link rel="stylesheet" href="./assets/sync-health.css?v=3.5.0-rc.1">
+    <link rel="stylesheet" href="./assets/backup-preview.css?v=3.5.0-rc.1">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MYCAR STAGING — Vehicle Tracker</title>
@@ -13,13 +13,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MYCAR">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./assets/auth.css?v=3.4.2">
+    <link rel="stylesheet" href="./assets/auth.css?v=3.5.0-rc.1">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/staging.svg">
     <link rel="apple-touch-icon" href="./icons/staging.svg">
     <!-- Precompiled Tailwind CSS (offline-ready) -->
-    <link rel="stylesheet" href="./assets/app.css?v=3.4.2">
-    <link rel="stylesheet" href="./assets/car-photos.css?v=3.4.2">
-    <link rel="stylesheet" href="./assets/tng-import.css?v=3.4.2">
+    <link rel="stylesheet" href="./assets/app.css?v=3.5.0-rc.1">
+    <link rel="stylesheet" href="./assets/car-photos.css?v=3.5.0-rc.1">
+    <link rel="stylesheet" href="./assets/tng-import.css?v=3.5.0-rc.1">
     <!-- MYCAR v3.1: critical hero layout is inline to avoid a mixed-cache layout. -->
     <style id="mycar-v31-critical-layout">
       .mycar-hero-main{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(104px,43%)!important;align-items:center!important;gap:4px!important;min-height:112px!important}
@@ -99,7 +99,7 @@
       .mycar-v33-month:focus-visible .mycar-v33-hit{stroke:#064e3b;stroke-width:2}
       @media(max-width:390px){#fields-tax .grid{grid-template-columns:1fr}}
     </style>
-    <link rel="stylesheet" href="./assets/mobile-viewport-fix.css?v=3.4.2">
+    <link rel="stylesheet" href="./assets/mobile-viewport-fix.css?v=3.5.0-rc.1">
 
     <style id="mycar-v341-header-style">
       /* Compact header: logo + vehicle/plate on left, status + 3 actions on right. */
@@ -777,7 +777,7 @@
                         <p class="text-[10px] leading-5 text-slate-500 mt-1">Reference rates provided by <a class="underline" target="_blank" rel="noopener noreferrer" href="https://www.exchangerate-api.com">ExchangeRate-API</a>. Amounts entered and exported remain MYR; only on-screen values are converted.</p>
                     </div>
                     <div class="pt-2 space-y-2">
-                        <div class="text-center text-[11px] text-slate-500">MYCAR v3.3.1 · PWA auto-update enabled</div>
+                        <div class="text-center text-[11px] text-slate-500">MYCAR v3.5.0-rc.1 · RC preview (not deployed)</div>
                         <button type="button" onclick="checkMYCARUpdates()" class="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold py-2.5 rounded-xl text-xs transition">Check for app updates</button>
                         <button id="install-app-btn" onclick="installMYCAR()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Install MYCAR App</button>
                         <p id="install-hint" class="text-[11px] text-slate-500">On Android: browser menu → Install app. On iPhone: Share → Add to Home Screen.</p>
@@ -864,14 +864,14 @@
 
     <!-- JavaScript Application Logic -->
     <script src="./auth-config.js" defer></script>
-    <script src="./auth.js?v=3.4.2" defer></script>
-    <script src="./cloud-sync.js?v=staging-test-v9" defer></script>
-    <script src="./sync-health.js?v=3.4.3" defer></script>
-    <script src="./restore-dry-run.js?v=3.4.5" defer></script>
-    <script src="./backup-preview.js?v=3.4.5" defer></script>
-    <script src="./rpc-restore-staging.js?v=staging-test-v6" defer></script>
-    <script src="./app.js?v=staging-test-v6" defer></script>
-    <script src="./vehicle-photos.js?v=3.4.2" defer></script>
-    <script src="./tng-import.js?v=3.4.2" defer></script>
+    <script src="./auth.js?v=3.5.0-rc.1" defer></script>
+    <script src="./cloud-sync.js?v=3.5.0-rc.1" defer></script>
+    <script src="./sync-health.js?v=3.5.0-rc.1" defer></script>
+    <script src="./restore-dry-run.js?v=3.5.0-rc.1" defer></script>
+    <script src="./backup-preview.js?v=3.5.0-rc.1" defer></script>
+    <script src="./rpc-restore-staging.js?v=3.5.0-rc.1" defer></script>
+    <script src="./app.js?v=3.5.0-rc.1" defer></script>
+    <script src="./vehicle-photos.js?v=3.5.0-rc.1" defer></script>
+    <script src="./tng-import.js?v=3.5.0-rc.1" defer></script>
 </body>
 </html>
