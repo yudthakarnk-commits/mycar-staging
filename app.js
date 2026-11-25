@@ -1189,6 +1189,8 @@
             document.getElementById('auth-screen').hidden = true;
             MYCARCloud.start(user,{
                 getData:()=>JSON.parse(JSON.stringify(dbData)),
+                isFreshDefault:(local)=>localStorage.getItem(STORAGE_KEY)===null &&
+                    JSON.stringify(local)===JSON.stringify(newEmptyData()),
                 applyData:(updated)=>{
                     // Cloud updates must not be queued again as local edits.
                     if(!isValidBackup(updated)) {
