@@ -394,7 +394,7 @@ const MYCARCloud = (() => {
   document.addEventListener('visibilitychange',()=>{if(active && !document.hidden)schedule(0);});
   function diagnostics(){
     return {
-      clientVersion:'3.5.0-rc.1',
+      clientVersion:'3.5.0-rc.2',
       active,online:navigator.onLine,busy,restoreMaintenance,
       pendingCount:currentPendingCount(),
       unknownBaseCount:Object.values(pending).filter(op=>op.baseKnown!==true).length,
