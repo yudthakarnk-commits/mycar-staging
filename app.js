@@ -231,7 +231,7 @@
             navigator.serviceWorker.addEventListener('controllerchange',()=>{
                 if(changedController)return;
                 changedController=true;
-                const versionKey='mycar-sw-loaded-v3.3.1';
+                const versionKey='mycar-sw-loaded-v3.5.0-rc.1';
                 const editorOpen=['app-modal','vehicle-modal','tng-import-modal'].some(id=>{
                     const element=document.getElementById(id);
                     return !!element && !element.classList.contains('hidden') && !element.hidden;
@@ -264,7 +264,7 @@
             } catch(error) {console.warn('Update check failed',error);}
             // Changing the query string bypasses the old cache-first v3 worker.
             const url=new URL(window.location.href);
-            url.searchParams.set('v','3.1.0');
+            url.searchParams.set('v','3.5.0-rc.1');
             window.location.assign(url.href);
         }
 
