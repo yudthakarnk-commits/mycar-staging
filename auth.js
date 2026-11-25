@@ -37,6 +37,8 @@ const AuthManager = (() => {
   function parseConfig(url, key) {
     try {
       const parsed = new URL(String(url || '').trim());
+      // ISOLATED QA BRANCH ONLY. Prevent stored or user-supplied Production endpoints.
+      if (parsed.href.replace(/\/+$/, '') !== 'https://dlbshlvyhfwkorooxbnu.supabase.co') return null;
       const local = ['localhost','127.0.0.1'].includes(parsed.hostname);
       if (!(parsed.protocol === 'https:' || (local && parsed.protocol === 'http:'))) return null;
       if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
