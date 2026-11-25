@@ -1,7 +1,6 @@
-// Release-candidate template: configure public Supabase URL and publishable key at build time.
-// NEVER put a service_role or sb_secret key here.
-// No endpoint or key is embedded by default. Do not deploy this template directly.
+// QA PREVIEW ONLY: STAGING public publishable key, never production.
+// NOTE: This isolated QA branch MUST NOT be promoted into Production.
 window.MYCAR_AUTH_CONFIG = {
-  supabaseUrl: "",
-  supabasePublishableKey: ""
+  supabaseUrl: "https://dlbshlvyhfwkorooxbnu.supabase.co",
+  supabasePublishableKey: "sb_publishable_A5nFhohxEH6kLwBP2VDY3g_h88JPbZN"
 };
