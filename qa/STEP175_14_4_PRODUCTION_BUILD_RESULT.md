@@ -1,0 +1,2 @@
+# Production candidate build — Run #1
+Owner screenshot shows successful workflow run #1, 13 seconds, commit 76952d89b8208546635145827ee645ab9008a69f, prep/production-package-20261125. Build-only workflow has no deployment job. Artifact contents, job logs and checksum manifest have not been independently retrieved. Obtain and retain artifact and SHA256SUMS before cutover. Full database/Auth backup and explicit production authorization remain outstanding. No production changes authorized.
