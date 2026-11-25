@@ -1,0 +1,4 @@
+# Full database backup evidence
+Owner screenshot: MYCAR_FULL_20261126_002908.dump, 451338 bytes, Windows local timestamp 2026-11-26 00:30. SHA256 2993841AE53B802D3F5EA95E6BFDD7AE1CD4046705CA74D3E9373293927CB918.
+pg_dump custom format completed and copied to Windows. Screenshot of pg_restore -l shows auth.users, auth.identities, public.mycar_records, three owner policies and updated_at function. Owner confirmed pg_restore --exit-on-error -f /dev/null in network-isolated container passed.
+Evidence is owner-provided, not independent access to archive. Not a full restore rehearsal. Cluster-level roles, project Auth settings, external storage object bytes and external secrets are not guaranteed by pg_dump. Keep archive encrypted and outside GitHub/chat. Fresh backup and fingerprint at approved cutover remain required. No production changes or deployment authorized.
