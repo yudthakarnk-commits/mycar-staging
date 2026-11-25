@@ -1,0 +1,110 @@
+name: Build MYCAR RC2 Mobile STAGING
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_staging:
+        description: Publish verified candidate to existing STAGING Pages
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+    steps:
+      - name: Checkout exact tested RC2
+        uses: actions/checkout@v4
+        with:
+          ref: e47312fd75c6f14bac3c979022646ceb9aa44523
+          path: candidate
+          persist-credentials: false
+      - name: Fetch original static car illustration only (read-only)
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/yudthakarnk-commits/mycar.git illustration
+          git -C illustration show c0a0eab78d80945bd2b36c4800f651713fb78f96:assets/toyota-corolla-cross-3q.webp > candidate/assets/toyota-corolla-cross-3q.webp
+      - name: Assemble isolated STAGING artifact
+        env:
+          MYCAR_STAGING_PUBLISHABLE_KEY: ${{ secrets.MYCAR_STAGING_PUBLISHABLE_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, shutil, struct
+          from pathlib import Path
+          src, dest = Path('candidate'), Path('site')
+          endpoint = 'https://dlbshlvyhfwkorooxbnu.supabase.co'
+          key = os.environ.get('MYCAR_STAGING_PUBLISHABLE_KEY','').strip()
+          assert re.fullmatch(r'sb_publishable_[A-Za-z0-9_-]{10,}',key), 'Invalid staging public key'
+          files = ['index.html','auth.js','cloud-sync.js','app.js','sync-health.js','restore-dry-run.js','backup-preview.js','rpc-restore.js','tng-import.js','vehicle-photos.js','service-worker.js','manifest.webmanifest']
+          files += ['assets/'+x for x in ['auth.css','app.css','car-photos.css','tng-import.css','mobile-viewport-fix.css','sync-health.css','backup-preview.css','toyota-corolla-cross-3q.webp']]
+          files += ['icons/icon-192.png','icons/icon-512.png','icons/staging.svg']
+          for rel in files:
+              p = dest/rel
+              p.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2(src/rel,p)
+          def replace(rel, old, new, expected=None):
+              p=dest/rel
+              s=p.read_text(encoding='utf-8')
+              n=s.count(old)
+              assert n and (expected is None or n==expected), f'Unexpected source: {rel}: {old}'
+              p.write_text(s.replace(old,new),encoding='utf-8')
+          replace('auth.js',"'mycar_auth_session_v1'","'mycar_staging_auth_session_v1'",1)
+          replace('auth.js',"'mycar_supabase_client_config_v1'","'mycar_staging_supabase_client_config_v1'",1)
+          replace('app.js',"'mycar_app_data_v2'","'mycar_staging_legacy_data_v2'",2)
+          replace('app.js',"'mycar_display_currency_v1'","'mycar_staging_display_currency_v1'",1)
+          replace('app.js',"'mycar_fx_rates_myr_v1'","'mycar_staging_fx_rates_myr_v1'",1)
+          replace('app.js','mycar-sw-loaded-v3.5.0-rc.1','mycar-staging-sw-loaded-v3.5.0-rc.2-mobile.1',1)
+          for rel in ['index.html','cloud-sync.js','service-worker.js']:
+              replace(rel,'3.5.0-rc.2','3.5.0-rc.2-mobile.1')
+          config={'expectedOrigin':endpoint,'supabaseUrl':endpoint,'supabasePublishableKey':key}
+          (dest/'auth-config.js').write_text('window.MYCAR_AUTH_CONFIG = '+json.dumps(config)+';\n',encoding='utf-8')
+          index=dest/'index.html'
+          html=index.read_text(encoding='utf-8')
+          assert html.count('</head>')==1
+          html=html.replace('</head>','<style>body::after{content:"STAGING - TEST DATA";position:fixed;right:10px;bottom:90px;z-index:2147483000;pointer-events:none;background:#7c2d12;color:white;padding:5px;border-radius:5px;font:bold 10px system-ui}</style></head>')
+          index.write_text(html,encoding='utf-8')
+          m=dest/'manifest.webmanifest'
+          manifest=json.loads(m.read_text(encoding='utf-8'))
+          manifest.update(name='MYCAR STAGING - Test Only',short_name='MYCAR TEST',description='Synthetic test data only.')
+          m.write_text(json.dumps(manifest,indent=2),encoding='utf-8')
+          for n in [192,512]:
+              b=(dest/f'icons/icon-{n}.png').read_bytes()
+              assert b[:8]==bytes.fromhex('89504e470d0a1a0a') and struct.unpack('>II',b[16:24])==(n,n), 'Invalid PNG icon'
+          b=(dest/'assets/toyota-corolla-cross-3q.webp').read_bytes()
+          assert b[:4]==b'RIFF' and b[8:12]==b'WEBP', 'Invalid illustration'
+          sw=(dest/'service-worker.js').read_text(encoding='utf-8')
+          assert "const CACHE_PREFIX='mycar-rc:'+self.registration.scope+':'" in sw and 'k.startsWith(CACHE_PREFIX)' in sw
+          for rel in re.findall(r"'\./([^']*)'",sw.split('const SHELL=')[1].split(';')[0]):
+              if rel: assert (dest/rel.split('?')[0]).is_file(), f'Missing shell: {rel}'
+          for p in dest.rglob('*'):
+              if p.suffix in ['.js','.html','.css','.webmanifest']:
+                  s=p.read_text(encoding='utf-8')
+                  assert 'pteskuyswmwppswzegxp' not in s and not re.search(r'sb_secret_[A-Za-z0-9_-]{10,}',s), f'Unsafe artifact: {p}'
+          assert 'mycar-restore-choose' in html and 'rpc-restore.js?v=3.5.0-rc.2-mobile.1' in html
+          assert 'mycar_apply_changes' in (dest/'cloud-sync.js').read_text()
+          assert len(list(p for p in dest.rglob('*') if p.is_file()))==len(files)+1
+          print('STAGING RC2 MOBILE ARTIFACT VERIFIED')
+          PY
+          for f in site/*.js; do node --check "$f"; done
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mycar-rc2-mobile-staging
+          path: site
+      - name: Configure Pages
+        if: inputs.deploy_staging
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        if: inputs.deploy_staging
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy STAGING Pages only
+        if: inputs.deploy_staging
+        uses: actions/deploy-pages@v4
