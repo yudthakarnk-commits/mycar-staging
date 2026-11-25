@@ -104,7 +104,40 @@ jobs:
         if: inputs.deploy_staging
         uses: actions/upload-pages-artifact@v4
         with:
+          name: github-pages
           path: site
+  deploy:
+    if: github.ref == 'refs/heads/main' && inputs.deploy_staging
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Verify Pages artifact is visible
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 12); do
+            count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" --jq '[.artifacts[] | select(.name == "github-pages" and .expired == false)] | length') || count=0
+            if [ "$count" = "1" ]; then
+              echo "Exactly one Pages artifact is visible"
+              exit 0
+            fi
+            if [ "$count" -gt 1 ]; then
+              echo "Duplicate Pages artifacts; start a fresh workflow run"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "Pages artifact not visible"
+          exit 1
       - name: Deploy STAGING Pages only
-        if: inputs.deploy_staging
+        id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
