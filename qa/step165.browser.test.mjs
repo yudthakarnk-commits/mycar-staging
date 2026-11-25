@@ -58,8 +58,7 @@ test('Initial PWA synthetic sync and service worker scope',async()=>{
  await run(async x=>{
   await x.page.waitForFunction(()=>MYCARCloud.diagnostics().lastSuccessful!==null,null,{timeout:15000});
   assert.equal(x.metrics().writes,0);
-  await x.page.waitForFunction(()=>navigator.serviceWorker?.controller!==null,null,{timeout:15000});
-  assert.match(await x.page.evaluate(()=>navigator.serviceWorker.controller.scriptURL),/127\.0\.0\.1:4173\/service-worker\.js/);
+  await x.page.waitForFunction(()=>navigator.serviceWorker?.controller?.scriptURL?.includes('127.0.0.1:4173/service-worker.js')===true,null,{timeout:15000});
   await x.ctx.close();
  });
 });
@@ -80,6 +79,13 @@ test('Legacy unknown baseline requires conflict decision before upload',async()=
   const old={'fuel|f_old':{collection:'fuel',record_id:'f_old',payload:{id:'f_old',liters:35},deleted:false}};
   const text=JSON.stringify(old),key=queueKey(UID);
   const x=await fixture(browser,{storage:{[key]:text}});
+  await x.page.waitForTimeout(1200);
+  console.log('QA legacy diagnosis:',JSON.stringify(await x.page.evaluate(()=>({
+    url:location.href,detail:document.getElementById('mycar-sync-detail')?.textContent,
+    hasDialog:!!document.getElementById('mycar-conflict-dialog'),
+    hasBlocker:!!document.getElementById('mycar-queue-safety-blocker'),
+    diag:MYCARCloud.diagnostics()
+  }))));
   await x.page.waitForSelector('#mycar-conflict-dialog',{timeout:15000});
   assert.equal(x.metrics().writes,0);
   assert.equal(await x.page.evaluate(k=>localStorage.getItem(k),key),text);
