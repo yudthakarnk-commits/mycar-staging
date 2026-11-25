@@ -76,7 +76,7 @@ test('Corrupt offline queue blocks and preserves bytes',async()=>{
 test('Legacy unknown baseline requires conflict decision before upload',async()=>{
  const browser=await chromium.launch({headless:true});
  try{
-  const old={'fuel|f_old':{collection:'fuel',record_id:'f_old',payload:{id:'f_old',liters:35},deleted:false}};
+  const old={'fuel|f_old':{collection:'fuel',record_id:'f_old',payload:{id:'f_old',vehicleId:'v1',liters:35},deleted:false}};
   const text=JSON.stringify(old),key=queueKey(UID);
   const x=await fixture(browser,{storage:{[key]:text}});
   await x.page.waitForTimeout(1200);
