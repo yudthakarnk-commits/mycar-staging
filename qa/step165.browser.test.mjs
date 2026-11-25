@@ -170,12 +170,14 @@ test('Known baseline delete creates server-side tombstone, not physical deletion
     const before=JSON.parse(JSON.stringify(dbData));
     const after=JSON.parse(JSON.stringify(dbData));
     after.fuel.push({id:'del_fuel',vehicleId:'v1',liters:21,odometer:1002,date:'2026-11-25'});
+    dbData=after;
     MYCARCloud.onLocalChange(before,after);
   });
-  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0,null,{timeout:15000});
+  await x.page.waitForFunction(()=>MYCARCloud.diagnostics().serverRevision===1 && MYCARCloud.diagnostics().pendingCount===0,null,{timeout:15000});
   await x.page.evaluate(()=>{
     const before=JSON.parse(JSON.stringify(dbData)),after=JSON.parse(JSON.stringify(dbData));
     after.fuel=after.fuel.filter(x=>x.id!=='del_fuel');
+    dbData=after;
     MYCARCloud.onLocalChange(before,after);
   });
   await x.page.waitForFunction(()=>MYCARCloud.diagnostics().pendingCount===0 && MYCARCloud.diagnostics().serverRevision===2,null,{timeout:15000});
@@ -192,7 +194,7 @@ test('Preview authentication URL cannot be overridden to production hostname',as
   const result=await x.page.evaluate(()=>{
     // User-supplied Production config must be rejected by hardcoded QA allowlist.
     const original=AuthManager.config?.url;
-    const candidate={url:'https://pteskuyswmwppswzegxp.supabase.co',key:'sb_publishable_testdummy12345'};
+    const candidate={url:'https://not-staging.example.invalid',key:'sb_publishable_testdummy12345'};
     localStorage.setItem('mycar_supabase_client_config_v1',JSON.stringify(candidate));
     return {original,active:AuthManager.config?.url};
   });
