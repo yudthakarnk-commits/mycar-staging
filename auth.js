@@ -40,6 +40,9 @@ const AuthManager = (() => {
       const local = ['localhost','127.0.0.1'].includes(parsed.hostname);
       if (!(parsed.protocol === 'https:' || (local && parsed.protocol === 'http:'))) return null;
       if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+      // Release candidates are fail-closed until an explicit build-time origin is provided.
+      const expected = String(window.MYCAR_AUTH_CONFIG?.expectedOrigin || '').trim();
+      if (!expected || parsed.origin !== expected || parsed.pathname !== '/') return null;
       if (!isSafePublicKey(key)) return null;
       return {url: parsed.href.replace(/\/+$/, ''), key:String(key).trim()};
     } catch { return null; }
