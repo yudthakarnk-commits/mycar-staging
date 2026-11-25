@@ -1,0 +1,4 @@
+# Risk acceptance — preparation authorization only
+Owner explicitly accepted six risks in chat: actual Auth disaster recovery not rehearsed (full database/Auth backup plan required); leaked password protection disabled; guarded SECURITY DEFINER RPC architecture; online authentication required after offline reload; production PWA upgrade not yet tested (backup and pending queue checks required); local-only rollback rehearsal.
+Owner expressly did NOT authorize production deployment. No production SQL execution, repository writes or deployment authorized.
+Full database/Auth backup must be obtained and secured before cutover; verify owner UUID mapping, Auth settings and recovery path, never commit credentials or password hashes. Fresh backup and fingerprint, all clients quiesced, pending=0, verified package, migration and rollback review and explicit cutover approval remain mandatory.
