@@ -313,7 +313,14 @@ const MYCARCloud = (() => {
       currentRemote=asMap(remote);
       if(!active || generation!==expectedGeneration) return;
       const local=bridge.getData();
-      if(!didInitialize && remote.length===0 && !currentPendingCount()) addAllLocalToQueue(local);
+      if(!didInitialize && remote.length===0 && !currentPendingCount()){
+        // Only a fresh, untouched default vehicle may bootstrap from a verified empty server.
+        // Existing local caches and legacy queues must retain explicit conflict protection.
+        if(bridge.isFreshDefault?.(local) === true && serverRevision===0 && !readFlight()){
+          knownRemote={}; knownRevision=serverRevision;
+        }
+        addAllLocalToQueue(local);
+      }
       const merged=stateFromRows(remote,local,pending);
       bridge.applyData(merged);
       if(currentPendingCount()) await flushQueue(expectedGeneration);
