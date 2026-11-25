@@ -1,0 +1,5 @@
+# Step 175.12 — Reduced mobile acceptance
+Date: 2026-11-25 (conversation date). PASS within agreed reduced staging scope.
+Source RC2 e47312fd75c6f14bac3c979022646ceb9aa44523; staging mobile build workflow cb1f0ac89bf3953e91d2c67f4ee94d51d8852f54. Workflow run #3 success shown in owner screenshot. Staging build variant 3.5.0-rc.2-mobile.1 includes namespaced authentication, legacy import and currency keys. Same web origin as production; not a full security-origin boundary.
+iPhone: screenshots show staging watermark, login, green sync indicator, RM144, two fuel logs, 2000 km. Owner confirmed installation, offline fuel entry/reconnect and backup chooser. Android: owner confirmed reduced test including receipt of iPhone data, installation, offline entry/reconnect, backup chooser. Expected end state RM234, four fuel logs, 3000 km; not independently queried in this report.
+No actual production legacy PWA upgrade, full Auth recovery or physical mid-flight interruption verified by these tests. No production change authorized. Remaining: production-target package and migration review, Auth recovery/risk acceptance, final cutover approval.
