@@ -11,13 +11,13 @@ DO $$ BEGIN
  THEN RAISE EXCEPTION 'Unexpected target schema'; END IF;
 END $$;
 LOCK TABLE public.mycar_records IN ACCESS EXCLUSIVE MODE;
-DO $ DECLARE fp text; BEGIN
+DO $$ DECLARE fp text; BEGIN
  SELECT md5(string_agg(md5(to_jsonb(r)::text),'' ORDER BY user_id,collection,record_id)) INTO fp FROM public.mycar_records r;
  IF fp IS DISTINCT FROM 'a2f187cae13eb9b2a53acc2362b8d6d2' THEN RAISE EXCEPTION 'Baseline changed: refresh backup and review fingerprint'; END IF;
  IF (SELECT count(*) FROM public.mycar_records) <> 254 OR (SELECT count(*) FROM auth.users) <> 3 THEN RAISE EXCEPTION 'Unexpected baseline'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_class WHERE oid='public.mycar_records'::regclass AND relrowsecurity) THEN RAISE EXCEPTION 'RLS disabled'; END IF;
  IF EXISTS(SELECT 1 FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN ('mycar_apply_changes','mycar_get_sync_state','mycar_restore_preview','mycar_restore_merge','mycar_reverse_restore')) THEN RAISE EXCEPTION 'Unexpected existing RPC'; END IF;
-END $;
+END $$;
 CREATE TEMP TABLE qa_cutover_baseline AS SELECT * FROM public.mycar_records;
 CREATE SCHEMA mycar_secure;
 CREATE TABLE mycar_secure.account_state(user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, revision bigint NOT NULL DEFAULT 0 CHECK(revision>=0),updated_at timestamptz NOT NULL DEFAULT now());
@@ -190,7 +190,7 @@ DO $$ BEGIN
  IF has_table_privilege('authenticated','public.mycar_records','INSERT') OR has_table_privilege('authenticated','public.mycar_records','UPDATE') OR has_table_privilege('authenticated','public.mycar_records','TRUNCATE') OR NOT has_table_privilege('authenticated','public.mycar_records','SELECT') THEN RAISE EXCEPTION 'Legacy lockdown failed'; END IF;
  IF has_schema_privilege('authenticated','mycar_secure','USAGE') THEN RAISE EXCEPTION 'Private schema exposed'; END IF;
 END $$;
-DO $ DECLARE f regprocedure; r text; p text; BEGIN
+DO $$ DECLARE f regprocedure; r text; p text; BEGIN
  IF (SELECT count(*) FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN ('mycar_apply_changes','mycar_get_sync_state','mycar_restore_preview','mycar_restore_merge','mycar_reverse_restore')) <> 5 THEN RAISE EXCEPTION 'RPC count mismatch'; END IF;
  FOREACH r IN ARRAY ARRAY['anon','authenticated','service_role'] LOOP
   FOREACH p IN ARRAY ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'] LOOP
@@ -201,7 +201,7 @@ DO $ DECLARE f regprocedure; r text; p text; BEGIN
  FOR f IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN ('mycar_apply_changes','mycar_get_sync_state','mycar_restore_preview','mycar_restore_merge','mycar_reverse_restore') LOOP
   IF has_function_privilege('anon',f::oid,'EXECUTE') OR has_function_privilege('service_role',f::oid,'EXECUTE') OR NOT has_function_privilege('authenticated',f::oid,'EXECUTE') THEN RAISE EXCEPTION 'RPC ACL mismatch'; END IF;
  END LOOP;
-END $;
+END $$;
 SELECT 'PASS: migration and grants' result;
 
 DO $$ BEGIN
