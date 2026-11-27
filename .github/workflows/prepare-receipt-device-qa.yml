@@ -1,0 +1,30 @@
+name: Prepare Receipt Device QA assets
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/prepare-receipt-device-qa.yml']
+permissions:
+  contents: write
+jobs:
+  assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy exact approved public OCR assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd receipt-qa/vendor/ocr
+          while read -r hash file; do
+            mkdir -p "$(dirname "$file")"
+            curl --fail --show-error --silent --location --retry 2 --max-time 90 "https://raw.githubusercontent.com/yudthakarnk-commits/mycar/7419a0d4a843c96d5b05f42570f12691963fe45b/vendor/ocr/${file#./}" -o "$file"
+          done < SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Commit assets to staging only
+        run: |
+          git config user.name 'mycar-qa[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add receipt-qa/vendor/ocr
+          git diff --cached --quiet || git commit -m 'Install verified receipt QA assets'
+          git push origin HEAD:main
