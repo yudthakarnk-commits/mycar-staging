@@ -1,0 +1,42 @@
+name: Receipt OCR Model Audit
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current model and retrieve comparison candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p model-audit
+          cp receipt-qa/vendor/ocr/lang/eng.traineddata.gz model-audit/current.gz
+          echo '45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91  model-audit/current.gz' | sha256sum -c -
+          curl -fL --retry 3 --max-time 120 https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int/eng.traineddata.gz -o model-audit/best-int.gz
+          curl -fL --retry 3 --max-time 120 https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0/eng.traineddata.gz -o model-audit/standard.gz
+          git ls-remote https://github.com/tesseract-ocr/tessdata_best.git HEAD > model-audit/best-source.txt
+          read -r revision rest < model-audit/best-source.txt
+          test "${#revision}" -eq 40
+          curl -fL --retry 3 --max-time 120 "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/$revision/eng.traineddata" -o model-audit/best-float.traineddata
+          for f in model-audit/*.gz; do gzip -t "$f"; gzip -dc "$f" > "${f%.gz}.traineddata"; done
+          sha256sum model-audit/*.traineddata model-audit/*.gz | tee model-audit/SHA256SUMS.txt
+          python - <<'PY' | tee model-audit/comparison.txt
+          from pathlib import Path
+          import hashlib
+          p=Path('model-audit')
+          current=(p/'current.traineddata').read_bytes()
+          for f in sorted(p.glob('*.traineddata')):
+              b=f.read_bytes()
+              print(f'{f.name}: {len(b)} bytes, SHA256={hashlib.sha256(b).hexdigest()}, same_as_current={b==current}')
+          PY
+          cat model-audit/comparison.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: receipt-ocr-model-audit
+          path: model-audit/
+          retention-days: 7
+          if-no-files-found: error
