@@ -130,6 +130,25 @@ manifest['short_name'] = 'MYCAR TEST'
 manifest['description'] = 'Staging environment. Never use for real vehicle data.'
 manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
 
+# Publish isolated, database-free receipt device QA only after verifying pinned assets.
+import hashlib
+qa = Path('receipt-qa')
+qa_files = ['index.html', 'qa.js', 'service-worker.js', 'manifest.webmanifest',
+            'fuel-receipt.js', 'fuel-receipt-ui.js', 'vendor/ocr/SHA256SUMS']
+for line in (qa / 'vendor/ocr/SHA256SUMS').read_text(encoding='utf-8').splitlines():
+    digest, rel = line.split(maxsplit=1)
+    rel = rel.removeprefix('./')
+    assert not Path(rel).is_absolute() and '..' not in Path(rel).parts
+    path = qa / 'vendor/ocr' / rel
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, f'OCR checksum mismatch: {rel}'
+    qa_files.append('vendor/ocr/' + rel)
+for rel in qa_files:
+    target = DEST / 'receipt-qa' / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(qa / rel, target)
+assert 'NO DATABASE' in (DEST / 'receipt-qa/index.html').read_text(encoding='utf-8')
+print(f'RECEIPT DEVICE QA VERIFIED: {len(qa_files)} files')
+
 # Fail closed on production URL accidentally copied into published JS/HTML/CSS.
 for p in DEST.rglob('*'):
     if p.is_file() and p.suffix.lower() in ('.js', '.html', '.css', '.webmanifest'):
