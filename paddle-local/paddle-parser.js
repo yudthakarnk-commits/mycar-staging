@@ -8,6 +8,9 @@ function parsePaddle(raw){
  const money=v=>/^RM[ \t]*\d+[.,]\d{2}$/i.test(v||'');
  const label=(i,s)=>(lines[i]||'').toLowerCase()===s;
  for(let i=0;i<lines.length;i++){
+  if(plate(lines[i])&&label(i+1,'app crypt')&&odo(lines[i+2])&&label(i+3,'vrn')&&label(i+4,'odometer')&&odo(lines[i+5])&&label(i+6,'auth code')){
+   extra.push('VRN '+lines[i],'Odometer '+lines[i+2]);skip.add(i+3);skip.add(i+4);
+  }
   if(plate(lines[i])&&label(i+1,'app crypt')&&odo(lines[i+2])&&label(i+3,'vrn')&&odo(lines[i+4])&&label(i+5,'odometer')&&label(i+6,'auth code')){
    extra.push('VRN '+lines[i],'Odometer '+lines[i+2]);skip.add(i+3);skip.add(i+5);
   }
@@ -20,7 +23,7 @@ function parsePaddle(raw){
  }
  for(let i=0;i<lines.length;i++){
   if(!skip.has(i)&&label(i,'vrn')&&plate(lines[i+1]))extra.push('VRN '+lines[i+1]);
-  if(!skip.has(i)&&label(i,'odometer')&&odo(lines[i+1]))extra.push('Odometer '+lines[i+1]);
+  if(!skip.has(i)&&label(i,'odometer')&&!label(i-1,'vrn')&&odo(lines[i+1]))extra.push('Odometer '+lines[i+1]);
   if(label(i,'total')&&money(lines[i+1]))extra.push('TOTAL '+lines[i+1]);
   if(money(lines[i])&&label(i+1,'card')&&money(lines[i+2])&&label(i+3,'total')&&lines[i].replace(',','.').toUpperCase()===lines[i+2].replace(',','.').toUpperCase())extra.push('TOTAL '+lines[i+2]);
  }
