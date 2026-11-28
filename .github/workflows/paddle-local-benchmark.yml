@@ -29,6 +29,9 @@ jobs:
             tar -tf "public/models/$model" >/dev/null
           done
           sha256sum public/models/*.tar | tee model-checksums.txt
+      - name: Run layout parser regression
+        working-directory: paddle-local
+        run: node parser-test.mjs
       - name: Build isolated browser fixture
         working-directory: paddle-local
         run: npx vite build

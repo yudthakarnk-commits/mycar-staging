@@ -1,5 +1,6 @@
 import { PaddleOCR } from '@paddleocr/paddleocr-js';
 import './parser.js';
+import './paddle-parser.js';
 const names=['PP-OCRv5_mobile_det_onnx_infer.tar','PP-OCRv5_mobile_rec_onnx_infer.tar'];
 const nativeFetch=window.fetch.bind(window);
 window.fetch=(input,options)=>{
@@ -32,8 +33,7 @@ async function predict(canvas){
  const [result]=await engine.predict(canvas);
  const items=result.items.map(x=>({text:x.text,score:x.score}));
  const raw=items.map(x=>x.text).join('\n');
- const normalized=raw.replace(/^([ \t]*)0dometer\b/gim,'$1Odometer').replace(/^([ \t]*)T0TAL\b/gim,'$1TOTAL');
- const parsed=window.MYCARReceipt.merge([window.MYCARReceipt.parse(normalized)]);
+ const {normalized,parsed}=window.MYCARPaddleParser.parsePaddle(raw);
  window.qaPhase='complete';
  return {initMs,scanMs:performance.now()-t,items,raw,normalized,parsed,runtime:result.runtime};
 }
@@ -89,4 +89,4 @@ el('scan').onclick=async()=>{
  }
  busy=false;el('scan').disabled=false;el('status').textContent='Completed '+results.length+' images';render();
 };
-el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 English / WASM',parser:'V6 197280b + explicit label normalization',reference:truth,perField:score(),results};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mycar-paddle-benchmark.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 English / WASM',parser:'V7 Paddle layout adapter + V6 core',reference:truth,perField:score(),results};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mycar-paddle-benchmark.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
