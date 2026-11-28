@@ -9,7 +9,7 @@ function status(s){el('receipt-status').textContent=s;el('receipt-status').class
 function destroy(){for(const x of [ready,pending])if(x){clearTimeout(x.timer);x.reject(Error('OCR cancelled'));}ready=pending=null;frame?.remove();frame=null;}
 function clearReview(){result=null;el('receipt-review').hidden=true;el('receipt-review').textContent='';el('receipt-plate-box').hidden=true;el('receipt-plate-confirm').value='';el('receipt-confirm').checked=false;el('receipt-confirm-box').hidden=true;el('receipt-apply').hidden=true;el('receipt-apply').disabled=true;}
 function reset(){generation++;destroy();clearReview();applied=null;if(url)URL.revokeObjectURL(url);url=null;el('receipt-preview').removeAttribute('src');el('receipt-preview').classList.add('hidden');el('receipt-status').classList.add('hidden');el('receipt-status').textContent='';el('receipt-file-input').value='';}
-window.addEventListener('pagehide',reset);
+window.addEventListener('pagehide',()=>{reset();el('app-modal')?.classList.add('hidden');el('entry-form')?.reset();});
 window.addEventListener('message',e=>{
  if(!frame||e.origin!==ORIGIN||e.source!==frame.contentWindow||e.data?.version!==VERSION)return;
  const d=e.data;

@@ -67,6 +67,8 @@ jobs:
           node ../receipt-guard-test.mjs
           node --check ../site/receipt-integrated-ui.js
           node --check ../site/app.js
+          cd ..
+          python3 scripts/verify_final_staging.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

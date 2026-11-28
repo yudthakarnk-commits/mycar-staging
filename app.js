@@ -899,7 +899,7 @@
 
         window.MYCARReceiptContext=()=>{
             const vehicle=getActiveVehicle();
-            if(!STORAGE_KEY||!AuthManager.currentUser||!dbData.vehicles.some(v=>v.id===vehicle.id)||document.getElementById('app-modal').classList.contains('hidden')||document.getElementById('form-type').value!=='fuel')return null;
+            if(!STORAGE_KEY||!AuthManager.currentUser||STORAGE_KEY!==`mycar_auth_v1:${AuthManager.projectId}:${AuthManager.currentUser.id}`||!dbData.vehicles.some(v=>v.id===vehicle.id)||document.getElementById('app-modal').classList.contains('hidden')||document.getElementById('form-type').value!=='fuel')return null;
             return {account:STORAGE_KEY,vehicle:{...vehicle},records:dbData.fuel,id:document.getElementById('form-id').value,today:localToday(),refresh:estimateFuelForm};
         };
         function previewReceipt(event) {
@@ -1218,6 +1218,7 @@
         }
 
         function initializeMYCARAfterLogin(user) {
+            closeModal(); // discard any receipt and draft from a previous session
             MYCARCurrency.init();
             // Namespaced by backend project + verified user UUID. No automatic legacy-data migration.
             STORAGE_KEY = `mycar_auth_v1:${AuthManager.projectId}:${user.id}`;
@@ -1255,6 +1256,8 @@
         }
 
         function lockMYCARAfterLogout() {
+            closeModal(); // cancel OCR, revoke the preview URL and hide the form
+            document.getElementById('entry-form').reset();
             MYCARCloud.stop();
             closeSettingsModal();
             dbData = newEmptyData();
