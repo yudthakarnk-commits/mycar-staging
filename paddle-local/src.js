@@ -37,9 +37,9 @@ async function predict(canvas){
  window.qaPhase='complete';
  return {initMs,scanMs:performance.now()-t,items,raw,normalized,parsed,runtime:result.runtime};
 }
-window.runSynthetic=async()=>{
- const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=620;
- const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,1000,620);ctx.fillStyle='black';ctx.font='40px monospace';
+window.runSynthetic=async(scale=1)=>{
+ const canvas=document.createElement('canvas');canvas.width=Math.round(1000*scale);canvas.height=Math.round(620*scale);
+ const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.fillStyle='white';ctx.fillRect(0,0,1000,620);ctx.fillStyle='black';ctx.font='40px monospace';
  ['SHELL SERVICE STATION','20NOV2026','VRN ABC1234','Odometer 22578','FuelSave 95','33.870ltr@RM3.720/ltr','TOTAL RM126.00'].forEach((line,i)=>ctx.fillText(line,25,60+75*i));
  return predict(canvas);
 };

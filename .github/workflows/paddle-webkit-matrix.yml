@@ -1,0 +1,54 @@
+name: PaddleOCR WebKit Diagnostic Matrix
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser SDK and tools
+        working-directory: paddle-local
+        run: |
+          npm install --save-exact @paddleocr/paddleocr-js@0.4.2 vite@6.3.5 playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+          npm ls --all > dependencies.txt
+      - name: Prepare local model archives
+        working-directory: paddle-local
+        run: |
+          set -euo pipefail
+          mkdir -p public/models
+          base=https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0
+          for model in PP-OCRv5_mobile_det_onnx_infer.tar PP-OCRv5_mobile_rec_onnx_infer.tar; do
+            curl --fail --location --retry 3 --max-time 180 "$base/$model" -o "public/models/$model"
+            tar -tf "public/models/$model" >/dev/null
+          done
+          sha256sum public/models/*.tar | tee model-checksums.txt
+      - name: Run layout parser regression
+        working-directory: paddle-local
+        run: node parser-test.mjs
+      - name: Build isolated browser fixture
+        working-directory: paddle-local
+        run: npx vite build
+      - name: Test Chromium control and three WebKit image sizes
+        working-directory: paddle-local
+        run: node webkit-matrix.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paddle-webkit-matrix
+          path: |
+            paddle-local/dist/
+            paddle-local/package-lock.json
+            paddle-local/dependencies.txt
+            paddle-local/webkit-matrix.json
+            paddle-local/model-checksums.txt
+            paddle-local/start-local.cmd
+            paddle-local/README.md
+          if-no-files-found: error
+          retention-days: 7
