@@ -32,6 +32,31 @@ jobs:
           MYCAR_STAGING_PUBLISHABLE_KEY: ${{ secrets.MYCAR_STAGING_PUBLISHABLE_KEY }}
         run: python3 scripts/build_staging.py
 
+      - name: Set up Node for isolated Paddle device QA
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build isolated Paddle device QA
+        working-directory: paddle-local
+        run: |
+          set -euo pipefail
+          npm install --save-exact @paddleocr/paddleocr-js@0.4.2 vite@6.3.5 playwright@1.56.1
+          node parser-test.mjs
+          mkdir -p public/models
+          base=https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0
+          for model in PP-OCRv5_mobile_det_onnx_infer.tar PP-OCRv5_mobile_rec_onnx_infer.tar; do
+            curl --fail --location --retry 3 --max-time 180 "$base/$model" -o "public/models/$model"
+            tar -tf "public/models/$model" >/dev/null
+          done
+          npx vite build --base ./
+          test -s dist/index.html
+          grep -q 'NO DATABASE' dist/index.html
+          mkdir -p ../site/paddle-device-qa/
+          cp -R dist/. ../site/paddle-device-qa/
+          test -s ../site/paddle-device-qa/models/PP-OCRv5_mobile_det_onnx_infer.tar
+          test -s ../site/paddle-device-qa/models/PP-OCRv5_mobile_rec_onnx_infer.tar
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

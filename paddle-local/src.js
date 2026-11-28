@@ -6,7 +6,7 @@ const nativeFetch=window.fetch.bind(window);
 window.fetch=(input,options)=>{
  const raw=typeof input==='string'||input instanceof URL?String(input):input.url;
  const u=new URL(raw,location.href);
- if(u.origin===location.origin)return nativeFetch(input,options);
+ if(u.origin===location.origin&&u.pathname.startsWith(new URL('./',location.href).pathname))return nativeFetch(input,options);
  const name=u.pathname.split('/').pop();
  if(u.hostname==='paddle-model-ecology.bj.bcebos.com'&&names.includes(name)){
    if((options?.method||'GET').toUpperCase()!=='GET')throw Error('Unexpected model request');
@@ -21,6 +21,7 @@ window.qaPhase='ready';
 async function initialize(){
  if(engine)return;
  window.qaPhase='initializing';
+ if(el('device-timing'))el('device-timing').textContent='Initializing model…';
  const t=performance.now();
  engine=await PaddleOCR.create({lang:'en',ocrVersion:'PP-OCRv5',ortOptions:{backend:'wasm',numThreads:1}});
  initMs=performance.now()-t;
@@ -29,12 +30,15 @@ async function initialize(){
 async function predict(canvas){
  await initialize();
  window.qaPhase='predicting';
+ if(el('device-timing'))el('device-timing').textContent='Model initialized in '+Math.round(initMs)+' ms; predicting…';
+ await new Promise(r=>setTimeout(r,50));
  const t=performance.now();
  const [result]=await engine.predict(canvas);
  const items=result.items.map(x=>({text:x.text,score:x.score}));
  const raw=items.map(x=>x.text).join('\n');
  const {normalized,parsed}=window.MYCARPaddleParser.parsePaddle(raw);
  window.qaPhase='complete';
+ if(el('device-timing'))el('device-timing').textContent='Prediction finished in '+Math.round(performance.now()-t)+' ms';
  return {initMs,scanMs:performance.now()-t,items,raw,normalized,parsed,runtime:result.runtime};
 }
 window.runSynthetic=async(scale=1)=>{
@@ -90,3 +94,5 @@ el('scan').onclick=async()=>{
  busy=false;el('scan').disabled=false;el('status').textContent='Completed '+results.length+' images';render();
 };
 el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 English / WASM',parser:'V7 Paddle layout adapter + V6 core',reference:truth,perField:score(),results};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mycar-paddle-benchmark.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+
+const synthetic=el('synthetic');if(synthetic)synthetic.onclick=async()=>{if(busy)return;busy=true;synthetic.disabled=true;el('init').disabled=true;el('scan').disabled=true;el('status').textContent='Synthetic test running; keep this page open';await new Promise(r=>setTimeout(r,50));try{const r=await window.runSynthetic();const expected={date:'2026-11-20',odometer:22578,liters:33.87,price:3.72,total:126,plate:'ABC1234',fuelType:'RON95',station:'Shell'};const checks=Object.fromEntries(Object.entries(expected).map(([k,v])=>[k,r.parsed[k]===v]));el('status').textContent=(Object.values(checks).every(Boolean)&&r.initMs<=30000&&r.scanMs<=15000?'PASS':'REVIEW')+' · '+Object.values(checks).filter(Boolean).length+'/8 fields · init '+Math.round(r.initMs)+' ms · scan '+Math.round(r.scanMs)+' ms';el('results').textContent=JSON.stringify({checks,...r},null,2);}catch(e){el('status').textContent='FAIL · '+window.qaPhase+' · '+e.message;}finally{busy=false;synthetic.disabled=false;el('init').disabled=false;el('scan').disabled=!engine;}};
