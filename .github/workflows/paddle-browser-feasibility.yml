@@ -18,6 +18,17 @@ jobs:
           npm install --save-exact @paddleocr/paddleocr-js@0.4.2 vite@6.3.5 playwright@1.56.1
           npx playwright install --with-deps chromium webkit
           npm ls --all > dependencies.txt
+      - name: Prepare local model archives
+        working-directory: paddle-qa
+        run: |
+          set -euo pipefail
+          mkdir -p public/models
+          base=https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0
+          for model in PP-OCRv5_mobile_det_onnx_infer.tar PP-OCRv5_mobile_rec_onnx_infer.tar; do
+            curl --fail --location --retry 3 --max-time 180 "$base/$model" -o "public/models/$model"
+            tar -tf "public/models/$model" >/dev/null
+          done
+          sha256sum public/models/*.tar | tee model-checksums.txt
       - name: Build isolated browser fixture
         working-directory: paddle-qa
         run: npx vite build
@@ -33,5 +44,6 @@ jobs:
             paddle-qa/package-lock.json
             paddle-qa/dependencies.txt
             paddle-qa/results.json
+            paddle-qa/model-checksums.txt
           if-no-files-found: warn
           retention-days: 7
