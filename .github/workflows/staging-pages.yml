@@ -50,12 +50,16 @@ jobs:
             tar -tf "public/models/$model" >/dev/null
           done
           npx vite build --base ./
+          python3 generate-offline.py
+          node --check dist/service-worker.js
           test -s dist/index.html
           grep -q 'NO DATABASE' dist/index.html
           mkdir -p ../site/paddle-device-qa/
           cp -R dist/. ../site/paddle-device-qa/
           test -s ../site/paddle-device-qa/models/PP-OCRv5_mobile_det_onnx_infer.tar
           test -s ../site/paddle-device-qa/models/PP-OCRv5_mobile_rec_onnx_infer.tar
+          test -s ../site/paddle-device-qa/offline-manifest.json
+          test -s ../site/paddle-device-qa/service-worker.js
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

@@ -93,6 +93,34 @@ el('scan').onclick=async()=>{
  }
  busy=false;el('scan').disabled=false;el('status').textContent='Completed '+results.length+' images';render();
 };
-el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 English / WASM',parser:'V7 Paddle layout adapter + V6 core',reference:truth,perField:score(),results};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mycar-paddle-benchmark.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 English / WASM',parser:'V8 Paddle layout adapter + V6 core',reference:truth,perField:score(),results};const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mycar-paddle-benchmark.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 const synthetic=el('synthetic');if(synthetic)synthetic.onclick=async()=>{if(busy)return;busy=true;synthetic.disabled=true;el('init').disabled=true;el('scan').disabled=true;el('status').textContent='Synthetic test running; keep this page open';await new Promise(r=>setTimeout(r,50));try{const r=await window.runSynthetic();const expected={date:'2026-11-20',odometer:22578,liters:33.87,price:3.72,total:126,plate:'ABC1234',fuelType:'RON95',station:'Shell'};const checks=Object.fromEntries(Object.entries(expected).map(([k,v])=>[k,r.parsed[k]===v]));el('status').textContent=(Object.values(checks).every(Boolean)&&r.initMs<=30000&&r.scanMs<=15000?'PASS':'REVIEW')+' · '+Object.values(checks).filter(Boolean).length+'/8 fields · init '+Math.round(r.initMs)+' ms · scan '+Math.round(r.scanMs)+' ms';el('results').textContent=JSON.stringify({checks,...r},null,2);}catch(e){el('status').textContent='FAIL · '+window.qaPhase+' · '+e.message;}finally{busy=false;synthetic.disabled=false;el('init').disabled=false;el('scan').disabled=!engine;}};
+
+const offlineButton=el('offline-prepare'), offlineStatus=el('offline-ready');
+if(offlineButton&&location.pathname.includes('/paddle-device-qa/')&&'serviceWorker' in navigator){
+ const base=new URL('./',location.href), swUrl=new URL('service-worker.js',base).href;
+ offlineButton.disabled=false;
+ async function verify(reg){
+  const worker=navigator.serviceWorker.controller;
+  if(!worker||worker.scriptURL!==swUrl||reg.installing||reg.waiting)return false;
+  const manifest=await (await fetch(new URL('offline-manifest.json',base))).json();
+  const cache=await caches.open(manifest.cache);
+  const matches=await Promise.all(manifest.files.map(f=>cache.match(new URL(f,base).href)));
+  if(!matches.every(Boolean))return false;
+  offlineStatus.textContent='Offline package verified — '+matches.length+'/'+manifest.files.length+' files · '+manifest.version;
+  return true;
+ }
+ offlineButton.onclick=async()=>{
+  offlineButton.disabled=true;offlineStatus.textContent='Preparing offline package…';
+  try{
+   const reg=await navigator.serviceWorker.register(swUrl,{scope:base.href});
+   await reg.update().catch(()=>{});
+   const deadline=Date.now()+180000;
+   while(Date.now()<deadline){if(await verify(reg))return;await new Promise(r=>setTimeout(r,700));}
+   throw Error('Package not verified; reconnect and retry.');
+  }catch(e){offlineStatus.textContent='Offline setup failed: '+e.message;}
+  finally{offlineButton.disabled=false;}
+ };
+ navigator.serviceWorker.getRegistration(base.href).then(reg=>{if(reg?.scope===base.href)return verify(reg);}).catch(()=>{});
+}

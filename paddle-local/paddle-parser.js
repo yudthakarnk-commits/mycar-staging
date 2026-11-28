@@ -1,13 +1,16 @@
 (function(root){
 'use strict';
 function parsePaddle(raw){
- const normalized=String(raw).replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean).join('\n').replace(/^0dometer\b/gim,'Odometer').replace(/^T0TAL\b/gim,'TOTAL').replace(/(\b\d{1,2}[A-Z0]{3}\d{4})(?=\d{1,2}:\d{2}(?:AM|PM)\b)/gi,'$1 ');
+ const normalized=String(raw).replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean).join('\n').replace(/^0dometer\b/gim,'Odometer').replace(/^odo[ \t]*me[ \t]*ter$/gim,'Odometer').replace(/^T0TAL\b/gim,'TOTAL').replace(/(\b\d{1,2}[A-Z0]{3}\d{4})(?=\d{1,2}:\d{2}(?:AM|PM)\b)/gi,'$1 ');
  const lines=normalized.split('\n'), extra=[], skip=new Set();
  const plate=v=>/^[A-Z]{1,4}[ -]?\d{1,4}[A-Z]?$/i.test(v||'');
  const odo=v=>/^\d{1,7}$/.test(v||'');
  const money=v=>/^RM[ \t]*\d+[.,]\d{2}$/i.test(v||'');
  const label=(i,s)=>(lines[i]||'').toLowerCase()===s;
  for(let i=0;i<lines.length;i++){
+  if(plate(lines[i])&&label(i+1,'app crypt')&&odo(lines[i+2])&&label(i+3,'vrn')&&odo(lines[i+4])&&label(i+5,'odometer')&&label(i+6,'auth code')){
+   extra.push('VRN '+lines[i],'Odometer '+lines[i+2]);skip.add(i+3);skip.add(i+5);
+  }
   if(plate(lines[i])&&label(i+1,'vrn')&&odo(lines[i+2])&&label(i+3,'odometer')&&odo(lines[i+4])&&label(i+5,'auth code')){
    extra.push('VRN '+lines[i],'Odometer '+lines[i+2]);skip.add(i+1);skip.add(i+3);
   }
