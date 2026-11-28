@@ -6,7 +6,25 @@ permissions:
 jobs:
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    name: ${{ matrix.browser }}-${{ matrix.scale }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - browser: Chromium
+            install: chromium
+            scale: '1'
+          - browser: WebKit
+            install: webkit
+            scale: '1'
+          - browser: WebKit
+            install: webkit
+            scale: '0.75'
+          - browser: WebKit
+            install: webkit
+            scale: '0.5'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,7 +34,7 @@ jobs:
         working-directory: paddle-local
         run: |
           npm install --save-exact @paddleocr/paddleocr-js@0.4.2 vite@6.3.5 playwright@1.56.1
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps ${{ matrix.install }}
           npm ls --all > dependencies.txt
       - name: Prepare local model archives
         working-directory: paddle-local
@@ -35,20 +53,20 @@ jobs:
       - name: Build isolated browser fixture
         working-directory: paddle-local
         run: npx vite build
-      - name: Test Chromium control and three WebKit image sizes
+      - name: Test isolated browser case
         working-directory: paddle-local
+        env:
+          QA_BROWSER: ${{ matrix.browser }}
+          QA_SCALE: ${{ matrix.scale }}
         run: node webkit-matrix.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: paddle-webkit-matrix
+          name: paddle-webkit-${{ matrix.browser }}-${{ matrix.scale }}
           path: |
-            paddle-local/dist/
             paddle-local/package-lock.json
             paddle-local/dependencies.txt
             paddle-local/webkit-matrix.json
             paddle-local/model-checksums.txt
-            paddle-local/start-local.cmd
-            paddle-local/README.md
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
