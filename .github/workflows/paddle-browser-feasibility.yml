@@ -1,0 +1,37 @@
+name: PaddleOCR Browser Feasibility
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser SDK and tools
+        working-directory: paddle-qa
+        run: |
+          npm install --save-exact @paddleocr/paddleocr-js@0.4.2 vite@6.3.5 playwright@1.56.1
+          npx playwright install --with-deps chromium webkit
+          npm ls --all > dependencies.txt
+      - name: Build isolated browser fixture
+        working-directory: paddle-qa
+        run: npx vite build
+      - name: Test both browsers (synthetic receipt only)
+        working-directory: paddle-qa
+        run: node smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paddle-browser-feasibility
+          path: |
+            paddle-qa/dist/
+            paddle-qa/package-lock.json
+            paddle-qa/dependencies.txt
+            paddle-qa/results.json
+          if-no-files-found: warn
+          retention-days: 7
