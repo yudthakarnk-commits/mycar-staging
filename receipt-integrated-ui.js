@@ -34,7 +34,12 @@ function review(){
  const r=result.r,g=window.MYCARReceiptGuard.check(r,c,el('receipt-plate-confirm').value),list=el('receipt-review');list.textContent='';
  for(const [label,key] of [['Date','date'],['Odometer','odometer'],['Litres','liters'],['RM/litre','price'],['Total RM','total'],['Plate','plate'],['Fuel','fuelType'],['Station','station']]){
  const line=document.createElement('div');line.textContent=label+': '+(r[key]??'Not recognized');list.appendChild(line);}
- for(const w of [...g.errors,...g.warnings,...(Array.isArray(r.warnings)?r.warnings:[])]){const line=document.createElement('div');line.textContent='Review: '+w;list.appendChild(line);}
+ const notice=(message,kind)=>{const line=document.createElement('div');line.className='receipt-notice receipt-notice-'+kind;line.textContent=message;list.appendChild(line);};
+ for(const w of g.errors)notice('Blocked: '+w,'error');
+ for(const w of g.warnings)notice(w,'warning');
+ const rawWarnings=Array.isArray(r.warnings)?r.warnings:[];
+ if(rawWarnings.some(w=>/detected in one OCR pass only\.$/.test(w)))notice('Single OCR pass: compare all recognized values with the receipt.','info');
+ for(const w of new Set(rawWarnings.filter(w=>!/detected in one OCR pass only\.$/.test(w))))notice(w,'warning');
  list.hidden=false;el('receipt-plate-box').hidden=!!r.plate;el('receipt-confirm-box').hidden=false;el('receipt-apply').hidden=false;el('receipt-apply').disabled=!!g.errors.length||!el('receipt-confirm').checked;
 }
 async function scan(event){

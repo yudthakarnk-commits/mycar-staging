@@ -152,6 +152,14 @@
       }
     </style>
 <style id="staging-warning-style">body::before{content:"MYCAR STAGING — TEST DATA ONLY";display:block;position:sticky;top:0;z-index:2147483647;text-align:center;background:#7c2d12;color:white;padding:6px;font:700 13px Arial,sans-serif;letter-spacing:.04em}</style>
+<style id="receipt-review-polish">
+#receipt-apply:disabled{background:#94a3b8!important;color:#fff!important;cursor:not-allowed;opacity:.8}
+#receipt-confirm-box:not([hidden]){display:block}
+.receipt-notice{padding:7px 9px;margin-top:6px;border-radius:7px;line-height:1.4}
+.receipt-notice-error{background:#fee2e2;color:#991b1b;font-weight:600}
+.receipt-notice-warning{background:#fef3c7;color:#92400e}
+.receipt-notice-info{background:#e0f2fe;color:#075985}
+</style>
 </head>
 <body data-environment="staging" class="bg-slate-950 flex justify-center items-center min-h-screen p-0 sm:p-4">
 
@@ -753,7 +761,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-100 p-3"><span id="mycar-sync-detail" class="text-[11px] text-slate-600">Not yet synced</span><button type="button" onclick="MYCARCloud.syncNow()" class="text-xs font-bold text-emerald-700">Sync now</button></div>
                     <div id="mycar-staging-build-info" style="border:2px solid #2563eb;border-radius:12px;padding:12px;background:#eff6ff;margin:10px 0;color:#1e40af">
-                      <div style="font-size:13px;font-weight:800;margin-bottom:8px">MYCAR STAGING · Build 2026-11-24.2 · OCR V9 Integration</div>
+                      <div style="font-size:13px;font-weight:800;margin-bottom:8px">MYCAR STAGING · Build 2026-11-24.2 · OCR V9 Integration · UI2</div>
                       <button type="button" onclick="alert(JSON.stringify(MYCARCloud.diagnostics(),null,2))" style="display:block;width:100%;padding:12px;border-radius:9px;background:#1d4ed8;color:white;font-weight:700">Open Sync Diagnostics</button>
                       <div style="font-size:11px;margin-top:8px">Staging-only diagnostic: no tokens, passwords or account ID are included.</div>
                     </div>
@@ -877,7 +885,7 @@
     <script src="./rpc-restore-staging.js?v=staging-test-v6" defer></script>
     <script src="./app.js?v=staging-ocr-v9-1" defer></script>
     <script src="./receipt-guard.js" defer></script>
-    <script src="./receipt-integrated-ui.js" defer></script>
+    <script src="./receipt-integrated-ui.js?v=ui2" defer></script>
     <script src="./vehicle-photos.js?v=3.4.2" defer></script>
     <script src="./tng-import.js?v=3.4.2" defer></script>
 </body>
