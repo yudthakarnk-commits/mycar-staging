@@ -1,0 +1,2 @@
+# MYCAR Paddle local benchmark
+No database, no deploy. Extract ZIP and run start-local.cmd (Python 3 required). Open http://127.0.0.1:8765 in Chrome/Edge. Initialize, choose original receipts, scan and export JSON. The JSON contains private recognized text; do not publish it. Optional reference JSON must be keyed by filename and independently verified. Missing reference fields are unscored. Use unique receipts for accuracy totals. The test does not certify Safari or installed PWA. Stop server with Ctrl+C.
