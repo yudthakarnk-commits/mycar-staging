@@ -51,7 +51,7 @@ for rel in FILES:
 STAGING_OVERRIDES = [
     'index.html', 'app.js', 'auth.js', 'cloud-sync.js',
     'sync-health.js', 'backup-preview.js', 'restore-dry-run.js',
-    'rpc-restore-staging.js', 'tng-import.js', 'vehicle-photos.js', 'service-worker.js',
+    'receipt-guard.js', 'receipt-integrated-ui.js', 'rpc-restore-staging.js', 'tng-import.js', 'vehicle-photos.js', 'service-worker.js',
     'manifest.webmanifest', 'assets/app.css', 'assets/auth.css',
     'assets/car-photos.css', 'assets/mobile-viewport-fix.css',
     'assets/tng-import.css', 'assets/sync-health.css',

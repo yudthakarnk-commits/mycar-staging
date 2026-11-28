@@ -60,6 +60,13 @@ jobs:
           test -s ../site/paddle-device-qa/models/PP-OCRv5_mobile_rec_onnx_infer.tar
           test -s ../site/paddle-device-qa/offline-manifest.json
           test -s ../site/paddle-device-qa/service-worker.js
+          mkdir -p ../site/paddle-integrated/
+          cp -R dist/. ../site/paddle-integrated/
+          python3 generate-offline.py ../site/paddle-integrated mycar-paddle-integrated:
+          node --check ../site/paddle-integrated/service-worker.js
+          node ../receipt-guard-test.mjs
+          node --check ../site/receipt-integrated-ui.js
+          node --check ../site/app.js
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

@@ -478,11 +478,16 @@
                                     <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-md">
                                         <svg aria-hidden="true" focusable="false" class="app-icon text-sm" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M149.1 64.8L138.7 96 64 96C28.7 96 0 124.7 0 160L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-256c0-35.3-28.7-64-64-64l-74.7 0L362.9 64.8C356.4 45.2 338.1 32 317.4 32L194.6 32c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"></path></svg>
                                     </div>
-                                    <span class="text-xs font-bold text-emerald-800">View Fuel Receipt / Slip</span>
-                                    <span class="text-[10px] text-emerald-600">Select a photo to check it and enter the values below</span>
+                                    <span class="text-xs font-bold text-emerald-800">Scan Fuel Receipt / Slip · V9</span>
+                                    <span class="text-[10px] text-emerald-600">Select a photo for local OCR. Review before applying.</span>
                                 </label>
                                 <p id="receipt-status" class="text-[10px] text-emerald-700 mt-2 hidden"></p>
                                 <img id="receipt-preview" alt="Selected receipt" class="hidden mx-auto mt-2 max-h-48 rounded-xl object-contain" />
+                                <button type="button" id="receipt-offline" style="margin-top:8px;text-decoration:underline;font-size:12px">Prepare offline OCR</button>
+                                <div id="receipt-review" hidden style="text-align:left;font-size:12px;line-height:1.6;overflow-wrap:anywhere;margin-top:8px" aria-live="polite"></div>
+                                <div id="receipt-plate-box" hidden><label for="receipt-plate-confirm">Actual plate printed on receipt</label><input id="receipt-plate-confirm" autocomplete="off" class="w-full bg-white border rounded-xl px-3 py-2"></div>
+                                <label id="receipt-confirm-box" hidden style="margin:8px 0;font-size:12px"><input type="checkbox" id="receipt-confirm"> I checked the values against the receipt</label>
+                                <button type="button" id="receipt-apply" hidden disabled class="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl">Apply to Fuel Record (no save)</button>
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
@@ -492,7 +497,7 @@
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-xs font-semibold text-slate-600">Quantity (Liters)</label>
-                                    <input type="number" step="0.01" id="fuel-liters" placeholder="e.g. 35.5" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                    <input type="number" step="0.001" id="fuel-liters" placeholder="e.g. 35.5" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
@@ -748,7 +753,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-100 p-3"><span id="mycar-sync-detail" class="text-[11px] text-slate-600">Not yet synced</span><button type="button" onclick="MYCARCloud.syncNow()" class="text-xs font-bold text-emerald-700">Sync now</button></div>
                     <div id="mycar-staging-build-info" style="border:2px solid #2563eb;border-radius:12px;padding:12px;background:#eff6ff;margin:10px 0;color:#1e40af">
-                      <div style="font-size:13px;font-weight:800;margin-bottom:8px">MYCAR STAGING · Build 2026-11-24.2</div>
+                      <div style="font-size:13px;font-weight:800;margin-bottom:8px">MYCAR STAGING · Build 2026-11-24.2 · OCR V9 Integration</div>
                       <button type="button" onclick="alert(JSON.stringify(MYCARCloud.diagnostics(),null,2))" style="display:block;width:100%;padding:12px;border-radius:9px;background:#1d4ed8;color:white;font-weight:700">Open Sync Diagnostics</button>
                       <div style="font-size:11px;margin-top:8px">Staging-only diagnostic: no tokens, passwords or account ID are included.</div>
                     </div>
@@ -870,7 +875,9 @@
     <script src="./restore-dry-run.js?v=3.4.5" defer></script>
     <script src="./backup-preview.js?v=3.4.5" defer></script>
     <script src="./rpc-restore-staging.js?v=staging-test-v6" defer></script>
-    <script src="./app.js?v=staging-test-v6" defer></script>
+    <script src="./app.js?v=staging-ocr-v9-1" defer></script>
+    <script src="./receipt-guard.js" defer></script>
+    <script src="./receipt-integrated-ui.js" defer></script>
     <script src="./vehicle-photos.js?v=3.4.2" defer></script>
     <script src="./tng-import.js?v=3.4.2" defer></script>
 </body>

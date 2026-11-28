@@ -1,6 +1,8 @@
-import hashlib, json
+import hashlib, json, sys
 from pathlib import Path
-root=Path('dist')
+root=Path(sys.argv[1] if len(sys.argv)>1 else 'dist')
+namespace=sys.argv[2] if len(sys.argv)>2 else 'mycar-paddle-device-qa:'
+assert namespace in ('mycar-paddle-device-qa:', 'mycar-paddle-integrated:')
 files=sorted(p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file() and p.name not in ('service-worker.js','offline-manifest.json'))
 assert 'index.html' in files
 assert len([p for p in files if p.startswith('models/') and p.endswith('.tar')])==2
@@ -9,12 +11,12 @@ for f in files:
     h.update(f.encode()); h.update(hashlib.sha256((root/f).read_bytes()).digest())
 version=h.hexdigest()[:16]
 files.append('offline-manifest.json')
-manifest={'version':version,'cache':'mycar-paddle-device-qa:'+version,'files':files}
+manifest={'version':version,'cache':namespace+version,'files':files}
 (root/'offline-manifest.json').write_text(json.dumps(manifest))
 sw=r"""
 const MANIFEST=__MANIFEST__;
 const BASE=self.registration.scope, SCOPE=new URL(BASE).pathname;
-const PREFIX='mycar-paddle-device-qa:', CACHE=MANIFEST.cache;
+const CACHE=MANIFEST.cache, PREFIX=CACHE.slice(0,CACHE.lastIndexOf(':')+1);
 self.addEventListener('install',e=>e.waitUntil((async()=>{
  const c=await caches.open(CACHE);
  for(const file of MANIFEST.files){

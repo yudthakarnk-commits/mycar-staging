@@ -1,6 +1,6 @@
 /* MYCAR staging-only PWA cache. Never cache production origins or other app scopes. */
-const CACHE='mycar-staging-fault-qa-20261128-v11';
-const SHELL=['./','./index.html','./auth-config.js','./auth.js','./cloud-sync.js','./app.js','./sync-health.js','./restore-dry-run.js','./backup-preview.js','./rpc-restore-staging.js','./tng-import.js','./vehicle-photos.js','./manifest.webmanifest','./assets/auth.css','./assets/app.css','./assets/car-photos.css','./assets/tng-import.css','./assets/mobile-viewport-fix.css','./assets/sync-health.css','./assets/backup-preview.css'];
+const CACHE='mycar-staging-fault-qa-20261128-v12';
+const SHELL=['./','./index.html','./auth-config.js','./auth.js','./cloud-sync.js','./app.js','./receipt-guard.js','./receipt-integrated-ui.js','./sync-health.js','./restore-dry-run.js','./backup-preview.js','./rpc-restore-staging.js','./tng-import.js','./vehicle-photos.js','./manifest.webmanifest','./assets/auth.css','./assets/app.css','./assets/car-photos.css','./assets/tng-import.css','./assets/mobile-viewport-fix.css','./assets/sync-health.css','./assets/backup-preview.css'];
 const SCOPE=new URL(self.registration.scope).pathname;
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('mycar-staging-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
@@ -9,7 +9,7 @@ self.addEventListener('fetch',event=>{
  const req=event.request;
  if(req.method!=='GET')return;
  const u=new URL(req.url);
- if(u.origin!==self.location.origin||!u.pathname.startsWith(SCOPE)||(u.pathname.startsWith(SCOPE+'receipt-qa/')||u.pathname.startsWith(SCOPE+'paddle-device-qa/')))return;
+ if(u.origin!==self.location.origin||!u.pathname.startsWith(SCOPE)||(u.pathname.startsWith(SCOPE+'receipt-qa/')||u.pathname.startsWith(SCOPE+'paddle-device-qa/')||u.pathname.startsWith(SCOPE+'paddle-integrated/')))return;
  event.respondWith((async()=>{
  const cache=await caches.open(CACHE);
  try{const r=await fetch(req,{cache:'no-store'});if(r.ok&&r.type==='basic')await cache.put(req,r.clone());return r;}

@@ -98,7 +98,7 @@ el('export').onclick=()=>{const payload={engine:'PaddleOCR.js 0.4.2 / PP-OCRv5 E
 const synthetic=el('synthetic');if(synthetic)synthetic.onclick=async()=>{if(busy)return;busy=true;synthetic.disabled=true;el('init').disabled=true;el('scan').disabled=true;el('status').textContent='Synthetic test running; keep this page open';await new Promise(r=>setTimeout(r,50));try{const r=await window.runSynthetic();const expected={date:'2026-11-20',odometer:22578,liters:33.87,price:3.72,total:126,plate:'ABC1234',fuelType:'RON95',station:'Shell'};const checks=Object.fromEntries(Object.entries(expected).map(([k,v])=>[k,r.parsed[k]===v]));el('status').textContent=(Object.values(checks).every(Boolean)&&r.initMs<=30000&&r.scanMs<=15000?'PASS':'REVIEW')+' · '+Object.values(checks).filter(Boolean).length+'/8 fields · init '+Math.round(r.initMs)+' ms · scan '+Math.round(r.scanMs)+' ms';el('results').textContent=JSON.stringify({checks,...r},null,2);}catch(e){el('status').textContent='FAIL · '+window.qaPhase+' · '+e.message;}finally{busy=false;synthetic.disabled=false;el('init').disabled=false;el('scan').disabled=!engine;}};
 
 const offlineButton=el('offline-prepare'), offlineStatus=el('offline-ready');
-if(offlineButton&&location.pathname.includes('/paddle-device-qa/')&&'serviceWorker' in navigator){
+if(offlineButton&&(location.pathname.includes('/paddle-device-qa/')||location.pathname.includes('/paddle-integrated/'))&&'serviceWorker' in navigator){
  const base=new URL('./',location.href), swUrl=new URL('service-worker.js',base).href;
  offlineButton.disabled=false;
  async function verify(reg){
@@ -123,4 +123,20 @@ if(offlineButton&&location.pathname.includes('/paddle-device-qa/')&&'serviceWork
   finally{offlineButton.disabled=false;}
  };
  navigator.serviceWorker.getRegistration(base.href).then(reg=>{if(reg?.scope===base.href)return verify(reg);}).catch(()=>{});
+}
+
+if(location.pathname.includes('/paddle-integrated/')&&new URLSearchParams(location.search).get('bridge')==='1'&&parent!==window){
+ const version='mycar-paddle-integrated-v9-1',origin=location.origin;let running=false;
+ const send=(type,id,value)=>parent.postMessage({version,type,id,...(type==='error'||type==='progress'?{message:value}:{value})},origin);
+ addEventListener('message',async e=>{
+  const d=e.data;if(e.source!==parent||e.origin!==origin||d?.version!==version||!Number.isSafeInteger(d.id)||!['scan','prepare'].includes(d.type))return;
+  if(running){send('error',d.id,'OCR busy');return;}running=true;let bitmap,canvas;
+  try{
+   if(d.type==='prepare'){if(!offlineButton||offlineButton.disabled)throw Error('Offline preparation unavailable');await offlineButton.onclick();const text=offlineStatus.textContent;if(!text.startsWith('Offline package verified'))throw Error(text);send('result',d.id,text);return;}
+   if(!(d.file instanceof Blob)||!d.file.type.startsWith('image/')||d.file.size>20*1024*1024)throw Error('Invalid receipt image');
+   send('progress',d.id,'Initializing local OCR…');await initialize();send('progress',d.id,'Reading receipt locally…');bitmap=await createImageBitmap(d.file);
+   const ratio=Math.min(1,2400/Math.max(bitmap.width,bitmap.height));canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+   const result=await predict(canvas);send('result',d.id,result.parsed);
+  }catch(e){send('error',d.id,String(e.message||e));}finally{bitmap?.close();if(canvas){canvas.width=0;canvas.height=0;}running=false;}
+ });send('ready',0,null);
 }

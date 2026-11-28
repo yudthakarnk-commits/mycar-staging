@@ -343,6 +343,7 @@
         }
 
         function switchActiveVehicle(id) {
+            closeModal();
             dbData.activeVehicleId = id;
             saveData();
             updateVehicleSelector();
@@ -798,6 +799,7 @@
             const dateEl = document.getElementById('field-date');
             if (!modal) return;
 
+            window.MYCARIntegratedOCR?.reset();
             document.getElementById('entry-form').reset();
             document.getElementById('form-id').value='';
             document.getElementById('trip-start-odo').dataset.autoStart='';
@@ -855,6 +857,7 @@
         }
 
         function closeModal() {
+            window.MYCARIntegratedOCR?.reset();
             const modal = document.getElementById('app-modal');
             if (modal) modal.classList.add('hidden');
         }
@@ -894,7 +897,13 @@
             if (modal) modal.classList.add('hidden');
         }
 
+        window.MYCARReceiptContext=()=>{
+            const vehicle=getActiveVehicle();
+            if(!STORAGE_KEY||!AuthManager.currentUser||!dbData.vehicles.some(v=>v.id===vehicle.id)||document.getElementById('app-modal').classList.contains('hidden')||document.getElementById('form-type').value!=='fuel')return null;
+            return {account:STORAGE_KEY,vehicle:{...vehicle},records:dbData.fuel,id:document.getElementById('form-id').value,today:localToday(),refresh:estimateFuelForm};
+        };
         function previewReceipt(event) {
+            if(window.MYCARIntegratedOCR)return window.MYCARIntegratedOCR.scan(event);
             const file = event.target.files?.[0];
             if (!file) return;
             const status=document.getElementById('receipt-status');
@@ -961,6 +970,7 @@
                 const station = document.getElementById('fuel-station').value;
 
                 if (!(odo > 0 && liters > 0 && cost >= 0)) { alert('Enter an odometer, positive litres, and a valid cost.'); return; }
+                if(window.MYCARIntegratedOCR&&!window.MYCARIntegratedOCR.beforeSave(window.MYCARReceiptContext()))return false;
                 upsertRecord('fuel', { id, vehicleId: activeVeh.id, date, odometer: odo, liters, cost, fuelType, station, notes: station });
                 if (odo > activeVeh.currentOdometer) {
                     activeVeh.currentOdometer = odo;
